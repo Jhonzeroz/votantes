@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Save, User, Check, Edit2, Search, X, Building } from "lucide-react";
+import { Save, User, Check, Edit2, Search, X, Building, ArrowLeft } from "lucide-react";
 
 // --- Definición de Tipos ---
 
@@ -43,6 +43,11 @@ const DepartmentManagement: React.FC = () => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
 
+
+
+      const handleRedirectToUsuarios = () => {
+        window.location.href = "/dashboard";
+    };
 
 
 
@@ -201,7 +206,17 @@ const DepartmentManagement: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Gestión de Departamentos</h1>
+
+                    <button
+                                            onClick={handleRedirectToUsuarios}
+                                            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                                        >
+                                            <ArrowLeft className="w-5 h-5 mr-2" />
+                                            Regresar
+                                        </button>
                 </div>
+
+                  
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Formulario */}

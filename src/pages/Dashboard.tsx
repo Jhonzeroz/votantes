@@ -219,52 +219,190 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
   };
 
-  // Función para exportar a Excel
-  const descargarExcel = async () => {
-    setExportandoExcel(true);
-    try {
-      // Obtenemos los datos según los filtros actuales
-      const datos = await fetchAllVotantes();
 
-      if (datos.length === 0) {
-        toast.warning("No hay datos para exportar");
-        setExportandoExcel(false);
-        return;
-      }
 
-      // Preparamos los datos para el Excel
-      const datosExcel = datos.map((votante: Votante) => ({
-        'Documento': votante.NUM_DOC,
-        'Nombre Completo': votante.NOMBRE_COMPLETO,
-        'Mesa': votante.MESA,
-        'Puesto': votante.PUESTO,
-        'Lugar de Votación': votante.LUGAR_VOTACION,
-        'Municipio': votante.ZONA_NOMBRE,
-        'Usuario Asignado': votante.USUARIO_NOMBRE,
-        'Fecha de Registro': votante.CREADO_EN
-      }));
 
-      // Creamos un nuevo libro de Excel
-      const workbook = XLSX.utils.book_new();
 
-      // Creamos una hoja de cálculo con los datos
-      const worksheet = XLSX.utils.json_to_sheet(datosExcel);
 
-      // Añadimos la hoja al libro
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Votantes");
 
-      // Generamos el archivo Excel
-      const nombreArchivo = `votantes_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      XLSX.writeFile(workbook, nombreArchivo);
 
-      toast.success("Archivo Excel descargado correctamente");
-    } catch (error) {
-      console.error("Error al exportar a Excel:", error);
-      toast.error("Error al exportar a Excel");
-    } finally {
+
+
+
+
+
+
+// Asumimos que tienes una interfaz o tipo para Votante
+// interface Votante { ... }
+
+const descargarExcel = async () => {
+  setExportandoExcel(true);
+  try {
+    const datos = await fetchAllVotantes();
+
+    if (datos.length === 0) {
+      toast.warning("No hay datos para exportar");
       setExportandoExcel(false);
+      return;
     }
-  };
+
+    // --- HOJA 1: DATOS ORIGINALES (Sin cambios) ---
+    const datosExcel = datos.map((votante: Votante) => ({
+      'Documento': votante.NUM_DOC,
+      'Nombre Completo': votante.NOMBRE_COMPLETO,
+      'Mesa': votante.MESA,
+      'Puesto': votante.PUESTO,
+      'Lugar de Votación': votante.LUGAR_VOTACION,
+      'Municipio': votante.ZONA_NOMBRE,
+      'Usuario Asignado': votante.USUARIO_NOMBRE,
+      'Fecha de Registro': votante.CREADO_EN
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    const worksheetOriginal = XLSX.utils.json_to_sheet(datosExcel);
+    XLSX.utils.book_append_sheet(workbook, worksheetOriginal, "Votantes");
+
+    // --- HOJA 2: RESUMEN POR USUARIO (CON ESTILOS) ---
+
+    // 1. Definir los estilos que vamos a usar
+    const mainTitleStyle = {
+      font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "366092" } }, // Azul oscuro
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    const summaryHeaderStyle = {
+      font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "70AD47" } }, // Verde
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+    
+    const userTitleStyle = {
+      font: { sz: 13, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "5B9BD5" } }, // Azul medio
+      alignment: { horizontal: "left", vertical: "center" }
+    };
+
+    const detailHeaderStyle = {
+      font: { sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "A5A5A5" } }, // Gris
+      alignment: { horizontal: "center", vertical: "center", wrapText: true }
+    };
+
+    // 2. Agrupar los datos por usuario (usando el método seguro del bucle for...of)
+    type VotantesPorUsuario = Record<string, Votante[]>;
+    const datosAgrupadosPorUsuario: VotantesPorUsuario = {};
+    for (const votante of datos) {
+      const usuario = votante.USUARIO_NOMBRE || 'SIN ASIGNAR';
+      if (!datosAgrupadosPorUsuario[usuario]) {
+        datosAgrupadosPorUsuario[usuario] = [];
+      }
+      datosAgrupadosPorUsuario[usuario].push(votante);
+    }
+
+    // 3. Crear la hoja de cálculo vacía para ir añadiendo celda por celda
+    const worksheetResumen: XLSX.WorkSheet = {};
+    let currentRow = 0; // Controlaremos la fila actual manualmente
+
+    // 4. Añadir el Título Principal
+    XLSX.utils.sheet_add_aoa(worksheetResumen, [['RESUMEN DE VOTANTES POR USUARIO']], { origin: `A${currentRow + 1}` });
+    worksheetResumen['A1'].s = mainTitleStyle;
+    currentRow++;
+
+    // 5. Añadir la Tabla de Resumen
+    currentRow++; // Fila en blanco
+    const summaryHeaders = ['USUARIO ASIGNADO', 'CANTIDAD DE VOTANTES'];
+    XLSX.utils.sheet_add_aoa(worksheetResumen, [summaryHeaders], { origin: `A${currentRow + 1}` });
+    
+    // Aplicar estilo a los encabezados de la tabla de resumen
+    worksheetResumen['A' + (currentRow + 1)].s = summaryHeaderStyle;
+    worksheetResumen['B' + (currentRow + 1)].s = summaryHeaderStyle;
+    currentRow++;
+
+    // Añadir los datos a la tabla de resumen
+    for (const usuario in datosAgrupadosPorUsuario) {
+      XLSX.utils.sheet_add_aoa(worksheetResumen, [[usuario, datosAgrupadosPorUsuario[usuario].length]], { origin: `A${currentRow + 1}` });
+      currentRow++;
+    }
+
+    // 6. Añadir el Detalle por cada Usuario
+    for (const usuario in datosAgrupadosPorUsuario) {
+      const votantesDelUsuario = datosAgrupadosPorUsuario[usuario];
+      
+      // Título para el usuario
+      currentRow++; // Fila en blanco
+      const userTitleText = `VOTANTES ASIGNADOS A: ${usuario.toUpperCase()} (TOTAL: ${votantesDelUsuario.length})`;
+      XLSX.utils.sheet_add_aoa(worksheetResumen, [[userTitleText]], { origin: `A${currentRow + 1}` });
+      worksheetResumen['A' + (currentRow + 1)].s = userTitleStyle;
+      currentRow++;
+
+      // Encabezados del detalle
+      const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'PUESTO', 'LUGAR DE VOTACIÓN', 'MUNICIPIO', 'FECHA DE REGISTRO'];
+      XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
+      
+      // Aplicar estilo a los encabezados del detalle
+      detailHeaders.forEach((_, colIndex) => {
+        const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIndex });
+        if (!worksheetResumen[cellAddress]) return; // Seguridad por si acaso
+        worksheetResumen[cellAddress].s = detailHeaderStyle;
+      });
+      currentRow++;
+
+      // Datos de los votantes
+      const voterData = votantesDelUsuario.map(v => [
+        v.NUM_DOC, v.NOMBRE_COMPLETO, v.MESA, v.PUESTO, v.LUGAR_VOTACION, v.ZONA_NOMBRE, v.CREADO_EN
+      ]);
+      XLSX.utils.sheet_add_aoa(worksheetResumen, voterData, { origin: `A${currentRow + 1}` });
+      currentRow += votantesDelUsuario.length;
+    }
+
+    // 7. Definir los rangos de celdas a fusionar (merges)
+    worksheetResumen['!merges'] = [
+      // Fusionar el título principal (A1)
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    ];
+    
+    // Fusionar los títulos de cada usuario
+    let mergeStartRow = 4; // El primer título de usuario empieza en la fila 5 (índice 4)
+    for (const usuario in datosAgrupadosPorUsuario) {
+      worksheetResumen['!merges'].push({
+        s: { r: mergeStartRow, c: 0 },
+        e: { r: mergeStartRow, c: 6 } // Fusionar de la columna A a la G
+      });
+      // Calcular la siguiente posición de título de usuario
+      mergeStartRow += 2 + 1 + datosAgrupadosPorUsuario[usuario].length; // +2 (título y en blanco), +1 (encabezado), +n (datos)
+    }
+
+    // 8. Ajustar el ancho de las columnas para que se vea bien
+    worksheetResumen['!cols'] = [
+      { wch: 15 }, // Documento
+      { wch: 35 }, // Nombre Completo
+      { wch: 8 },  // Mesa
+      { wch: 25 }, // Puesto
+      { wch: 30 }, // Lugar de Votación
+      { wch: 20 }, // Municipio
+      { wch: 20 }, // Fecha de Registro
+    ];
+
+    // 9. Añadir la hoja formateada al libro
+    XLSX.utils.book_append_sheet(workbook, worksheetResumen, "Resumen por Usuario");
+
+    // 10. Generar y descargar el archivo
+    const nombreArchivo = `reporte_votantes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, nombreArchivo);
+
+    toast.success("Archivo Excel descargado correctamente");
+  } catch (error) {
+    console.error("Error al exportar a Excel:", error);
+    toast.error("Error al exportar a Excel");
+  } finally {
+    setExportandoExcel(false);
+  }
+};
+
+
+
+
 
   // Debounce
   const debounced = <T extends (...args: any[]) => any>(fn: T, delay = 450) => {
@@ -726,7 +864,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
             {/* Relaciones */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Municipio Asignado
+                Zona Asignada
               </label>
               <select
                 name="id_zona_asignada"
@@ -736,7 +874,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                 className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
                            focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
               >
-                <option value="">-- Seleccione municipio --</option>
+                <option value="">-- Seleccione zona --</option>
                 {zonasState.map((z) => (
                   <option key={z.id} value={String(z.id)}>
                     {z.nombre}

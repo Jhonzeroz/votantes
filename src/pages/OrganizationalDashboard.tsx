@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Building, MapPin, Map, UserCheck, AlertCircle, Activity, ChevronDown, ChevronUp, UserX } from "lucide-react";
+import { Building, MapPin, Map, UserCheck, AlertCircle, Activity, ChevronDown, ChevronUp, UserX, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom"; // Asumiendo que usas React Router
 
 // --- Interfaces (sin cambios) ---
@@ -34,6 +34,10 @@ interface DashboardData {
         zonas: DetailItem[];
     };
 }
+
+          const handleRedirectToUsuarios = () => {
+        window.location.href = "/dashboard";
+    };
 
 // --- Componente para Tarjetas KPI ---
 const KpiCard: React.FC<{ title: string; current: number; total: number; icon: React.ElementType; color: string }> = ({ title, current, total, icon: Icon, color }) => {
@@ -128,8 +132,20 @@ const OrganizationalDashboard: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center mb-8">
+
+                     <button
+                                                                onClick={handleRedirectToUsuarios}
+                                                                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                                                            >
+                                                                <ArrowLeft className="w-5 h-5 mr-2" />
+                                                                Regresar
+                                                            </button>
+
+
                     <Activity className="w-8 h-8 text-indigo-600 mr-3" />
-                    <h1 className="text-4xl font-bold text-gray-800">Panel de Control Organizacional</h1>
+                    <h1 className="text-4xl font-bold text-gray-800">Panel de Control </h1>
+
+                      
                 </div>
 
                 {/* Insights Clave */}
@@ -152,119 +168,119 @@ const OrganizationalDashboard: React.FC = () => {
                     <KpiCard title="Zonas con Líder" current={data.summary.zonas_con_lider} total={data.summary.total_zonas} icon={UserCheck} color="bg-blue-500" />
                 </div>
 
-                {/* Sección de Tablas Detalladas en Acordeón y 2 Columnas */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <CollapsibleSection title="Estructura de Departamentos" icon={Building} iconColor="text-blue-600" defaultOpen={true}>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Departamento</th>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {data.details.departamentos.map(dpto => (
-                                        <tr key={dpto.ID_DPTO} className="hover:bg-gray-50">
-                                            <td className="py-3 px-4 font-medium text-gray-900">
-                                                {/* Ejemplo de cómo hacer el nombre un enlace a la página de edición */}
-                                                <Link to={`/departamentos/edit/${dpto.ID_DPTO}`} className="text-blue-600 hover:underline">
-                                                    {dpto.NOMBRE_DPTO}
-                                                </Link>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {dpto.NOMBRE_LIDER === "Sin asignar" ? (
-                                                    <span className="flex items-center text-red-500">
-                                                        <UserX className="w-4 h-4 mr-2" /> {dpto.NOMBRE_LIDER}
-                                                    </span>
-                                                ) : (
-                                                    <span className="flex items-center text-green-600">
-                                                        <UserCheck className="w-4 h-4 mr-2" />{dpto.NOMBRE_LIDER}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CollapsibleSection>
+           {/* Sección de Tablas Detalladas en Acordeón y 2 Columnas */}
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <CollapsibleSection title="Estructura de Departamentos" icon={Building} iconColor="text-blue-600">
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Departamento</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {data.details.departamentos.map(dpto => (
+                        <tr key={dpto.ID_DPTO} className="hover:bg-gray-50">
+                            <td className="py-3 px-4 font-medium text-gray-900">
+                                {/* Ejemplo de cómo hacer el nombre un enlace a la página de edición */}
+                                <Link to={`/departamentos/edit/${dpto.ID_DPTO}`} className="text-blue-600 hover:underline">
+                                    {dpto.NOMBRE_DPTO}
+                                </Link>
+                            </td>
+                            <td className="py-3 px-4">
+                                {dpto.NOMBRE_LIDER === "Sin asignar" ? (
+                                    <span className="flex items-center text-red-500">
+                                        <UserX className="w-4 h-4 mr-2" /> {dpto.NOMBRE_LIDER}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center text-green-600">
+                                        <UserCheck className="w-4 h-4 mr-2" />{dpto.NOMBRE_LIDER}
+                                    </span>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </CollapsibleSection>
 
-                    <CollapsibleSection title="Estructura de Municipios" icon={MapPin} iconColor="text-green-600">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Municipio</th>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {data.details.municipios.map(mncpio => (
-                                        <tr key={mncpio.ID_MUNICIPIO} className="hover:bg-gray-50">
-                                            <td className="py-3 px-4">
-                                                <div>
-                                                    <Link to={`/municipios/edit/${mncpio.ID_MUNICIPIO}`} className="font-medium text-blue-600 hover:underline">
-                                                        {mncpio.NOMBRE_MUNICIPIO}
-                                                    </Link>
-                                                    <p className="text-xs text-gray-500">{mncpio.NOMBRE_DPTO}</p>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {mncpio.NOMBRE_LIDER === "Sin asignar" ? (
-                                                    <span className="flex items-center text-red-500">
-                                                        <UserX className="w-4 h-4 mr-2" /> {mncpio.NOMBRE_LIDER}
-                                                    </span>
-                                                ) : (
-                                                    <span className="flex items-center text-green-600">
-                                                        <UserCheck className="w-4 h-4 mr-2" />{mncpio.NOMBRE_LIDER}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CollapsibleSection>
+    <CollapsibleSection title="Estructura de Municipios" icon={MapPin} iconColor="text-green-600">
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Municipio</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {data.details.municipios.map(mncpio => (
+                        <tr key={mncpio.ID_MUNICIPIO} className="hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                                <div>
+                                    <Link to={`/municipios/edit/${mncpio.ID_MUNICIPIO}`} className="font-medium text-blue-600 hover:underline">
+                                        {mncpio.NOMBRE_MUNICIPIO}
+                                    </Link>
+                                    <p className="text-xs text-gray-500">{mncpio.NOMBRE_DPTO}</p>
+                                </div>
+                            </td>
+                            <td className="py-3 px-4">
+                                {mncpio.NOMBRE_LIDER === "Sin asignar" ? (
+                                    <span className="flex items-center text-red-500">
+                                        <UserX className="w-4 h-4 mr-2" /> {mncpio.NOMBRE_LIDER}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center text-green-600">
+                                        <UserCheck className="w-4 h-4 mr-2" />{mncpio.NOMBRE_LIDER}
+                                    </span>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </CollapsibleSection>
 
-                    <CollapsibleSection title="Estructura de Zonas" icon={Map} iconColor="text-purple-600">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Zona</th>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Municipio</th>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {data.details.zonas.map(zona => (
-                                        <tr key={zona.ID_ZONA} className="hover:bg-gray-50">
-                                            <td className="py-3 px-4 font-medium text-gray-900">
-                                                <Link to={`/zonas/edit/${zona.ID_ZONA}`} className="text-blue-600 hover:underline">
-                                                    {zona.NOMBRE_ZONA}
-                                                </Link>
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-600">{zona.NOMBRE_MUNICIPIO}</td>
-                                            <td className="py-3 px-4">
-                                                {zona.NOMBRE_LIDER === "Sin asignar" ? (
-                                                    <span className="flex items-center text-red-500">
-                                                        <UserX className="w-4 h-4 mr-2" /> {zona.NOMBRE_LIDER}
-                                                    </span>
-                                                ) : (
-                                                    <span className="flex items-center text-green-600">
-                                                        <UserCheck className="w-4 h-4 mr-2" />{zona.NOMBRE_LIDER}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CollapsibleSection>
-                </div>
+    <CollapsibleSection title="Estructura de Zonas" icon={Map} iconColor="text-purple-600">
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Zona</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Municipio</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Líder</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {data.details.zonas.map(zona => (
+                        <tr key={zona.ID_ZONA} className="hover:bg-gray-50">
+                            <td className="py-3 px-4 font-medium text-gray-900">
+                                <Link to={`/zonas/edit/${zona.ID_ZONA}`} className="text-blue-600 hover:underline">
+                                    {zona.NOMBRE_ZONA}
+                                </Link>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{zona.NOMBRE_MUNICIPIO}</td>
+                            <td className="py-3 px-4">
+                                {zona.NOMBRE_LIDER === "Sin asignar" ? (
+                                    <span className="flex items-center text-red-500">
+                                        <UserX className="w-4 h-4 mr-2" /> {zona.NOMBRE_LIDER}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center text-green-600">
+                                        <UserCheck className="w-4 h-4 mr-2" />{zona.NOMBRE_LIDER}
+                                    </span>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </CollapsibleSection>
+</div>
             </div>
         </div>
     );

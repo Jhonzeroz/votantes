@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Save, Phone, MapPin, Shield, Check, Edit2, Trash2, Search, X, UserPlus } from "lucide-react";
+import { Save, Phone, MapPin, Shield, Check, Edit2, Trash2, Search, X, UserPlus, ArrowLeft } from "lucide-react";
 
 // Definimos los tipos para TypeScript
 interface Zona {
@@ -225,13 +225,22 @@ const UserManagement: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h1>
-                    <button
-                        onClick={handleRedirectToUsuarios}
-                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                        <UserPlus className="w-5 h-5 mr-2" />
-                        Registrar Votante
-                    </button>
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={handleRedirectToUsuarios}
+                            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                        >
+                            <ArrowLeft className="w-5 h-5 mr-2" />
+                            Regresar
+                        </button>
+                        <button
+                            onClick={handleRedirectToUsuarios}
+                            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            <UserPlus className="w-5 h-5 mr-2" />
+                            Registrar Votante
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
