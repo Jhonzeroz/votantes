@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Save, Phone, MapPin, Shield, Check, Edit2, Trash2, Search, X, UserPlus, ArrowLeft } from "lucide-react";
+import { Save, Phone, MapPin, Shield, Check, Edit2, Search, X, UserPlus, ArrowLeft, Mail, Lock } from "lucide-react";
 
 // Definimos los tipos para TypeScript
 interface Zona {
     id: number;
     nombre: string;
+}
+
+interface Municipio {
+    id: number;
+    nombre: string;
+    id_zona: number;
 }
 
 interface Usuario {
@@ -17,6 +23,8 @@ interface Usuario {
     ESTADO_USUARIO: number;
     ZONA_ASIGNADA: number;
     NOMBRE_ZONA: string;
+    CORREO_USUARIO?: string;
+    ES_USUARIO_SISTEMA?: number;
 }
 
 interface FormState {
@@ -26,6 +34,10 @@ interface FormState {
     rol_usuario: string;
     estado_usuario: string;
     zona_asignada: string;
+    municipio_asignado: string;
+    es_usuario_sistema: string;
+    correo_usuario: string;
+    contrasena_usuario: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -35,13 +47,19 @@ const UserManagement: React.FC = () => {
         telefono_usuario: "",
         rol_usuario: "",
         estado_usuario: "1", // Por defecto Activo
-        zona_asignada: ""
+        zona_asignada: "",
+        municipio_asignado: "",
+        es_usuario_sistema: "0", // Por defecto No
+        correo_usuario: "",
+        contrasena_usuario: ""
     });
 
     const [zonas, setZonas] = useState<Zona[]>([]);
+    const [municipios, setMunicipios] = useState<Municipio[]>([]);
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingZonas, setLoadingZonas] = useState(true);
+    const [loadingMunicipios, setLoadingMunicipios] = useState(false);
     const [loadingUsuarios, setLoadingUsuarios] = useState(true);
     const [saved, setSaved] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -56,7 +74,7 @@ const UserManagement: React.FC = () => {
     useEffect(() => {
         const fetchZonas = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/zonas_list.php");
+                const response = await fetch(`https://datainsightscloud.com/Apis/zonas_list.php?t=${Date.now()}`);
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setZonas(data.data);
@@ -73,6 +91,34 @@ const UserManagement: React.FC = () => {
 
         fetchZonas();
     }, []);
+
+    // Cargar municipios cuando se selecciona una zona
+    useEffect(() => {
+        if (form.zona_asignada) {
+            setLoadingMunicipios(true);
+            const fetchMunicipios = async () => {
+                try {
+                    const response = await fetch(`https://datainsightscloud.com/Apis/municipios_list.php?id_zona=${form.zona_asignada}&t=${Date.now()}`);
+                    const data = await response.json();
+                    if (data?.success && Array.isArray(data.data)) {
+                        setMunicipios(data.data);
+                    } else {
+                        toast.error("Error al cargar los municipios");
+                    }
+                } catch (error) {
+                    toast.error("Error de conexión al cargar municipios");
+                    console.error("Error fetching municipios:", error);
+                } finally {
+                    setLoadingMunicipios(false);
+                }
+            };
+
+            fetchMunicipios();
+        } else {
+            setMunicipios([]);
+            setForm(prev => ({ ...prev, municipio_asignado: "" }));
+        }
+    }, [form.zona_asignada]);
 
     // Cargar usuarios desde el API
     useEffect(() => {
@@ -108,36 +154,13 @@ const UserManagement: React.FC = () => {
             telefono_usuario: usuario.TELEFONO_USUARIO,
             rol_usuario: usuario.ROL_USUARIO,
             estado_usuario: usuario.ESTADO_USUARIO.toString(),
-            zona_asignada: usuario.ZONA_ASIGNADA.toString()
+            zona_asignada: usuario.ZONA_ASIGNADA.toString(),
+            municipio_asignado: "",
+            es_usuario_sistema: usuario.ES_USUARIO_SISTEMA?.toString() || "0",
+            correo_usuario: usuario.CORREO_USUARIO || "",
+            contrasena_usuario: "" 
         });
         setEditingId(usuario.ID_USUARIO);
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!confirm("¿Estás seguro de que quieres eliminar este usuario?")) return;
-
-        try {
-            const response = await fetch(`https://datainsightscloud.com/Apis/usuario_delete.php?id=${id}`, {
-                method: "DELETE"
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                toast.success("Usuario eliminado correctamente");
-                // Recargar la lista de usuarios
-                const response = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
-                const dataUsuarios = await response.json();
-                if (dataUsuarios?.success && Array.isArray(dataUsuarios.data)) {
-                    setUsuarios(dataUsuarios.data);
-                }
-            } else {
-                toast.error(data.message || "Error al eliminar el usuario");
-            }
-        } catch (error) {
-            toast.error("Error de conexión");
-            console.error("Error deleting user:", error);
-        }
     };
 
     const resetForm = () => {
@@ -147,7 +170,11 @@ const UserManagement: React.FC = () => {
             telefono_usuario: "",
             rol_usuario: "",
             estado_usuario: "1",
-            zona_asignada: ""
+            zona_asignada: "",
+            municipio_asignado: "",
+            es_usuario_sistema: "0",
+            correo_usuario: "",
+            contrasena_usuario: ""
         });
         setEditingId(null);
     };
@@ -160,44 +187,82 @@ const UserManagement: React.FC = () => {
             return toast.error("Todos los campos son obligatorios");
         }
 
+        // Validación adicional si es usuario del sistema
+        if (form.es_usuario_sistema === "1") {
+            if (!form.correo_usuario || !form.contrasena_usuario) {
+                return toast.error("Para usuarios del sistema, el correo y la contraseña son obligatorios");
+            }
+            
+            // Validación básica de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(form.correo_usuario)) {
+                return toast.error("Por favor, ingrese un correo electrónico válido");
+            }
+        }
+
         setLoading(true);
 
         try {
-            const url = editingId
+            // Primero, guardamos el usuario regular con la API existente
+            const urlRegular = editingId
                 ? `https://datainsightscloud.com/Apis/usuario_update.php?id=${editingId}`
                 : "https://datainsightscloud.com/Apis/usuario_create.php";
 
-            const method = "POST";
-
-            const response = await fetch(url, {
-                method,
+            const responseRegular = await fetch(urlRegular, {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(form),
             });
 
-            const data = await response.json();
+            const dataRegular = await responseRegular.json();
 
-            if (data.success) {
-                toast.success(editingId ? "Usuario actualizado correctamente" : "Usuario guardado correctamente");
-                setSaved(true);
-                setTimeout(() => setSaved(false), 3000);
-
-                // Resetear formulario
-                resetForm();
-
-                // Recargar la lista de usuarios
-                const responseUsuarios = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
-                const dataUsuarios = await responseUsuarios.json();
-                if (dataUsuarios?.success && Array.isArray(dataUsuarios.data)) {
-                    setUsuarios(dataUsuarios.data);
-                }
-            } else {
-                toast.error(data.message || "Error al guardar el usuario");
+            if (!dataRegular.success) {
+                throw new Error(dataRegular.message || "Error al guardar el usuario regular");
             }
+
+            // Si es usuario del sistema, también guardamos los datos del sistema
+            if (form.es_usuario_sistema === "1") {
+                // Preparamos los datos para el API de usuario del sistema
+                const sistemaData = {
+                    id_usuario: editingId || dataRegular.id_usuario, // Usamos el ID del usuario existente o el recién creado
+                    correo_usuario: form.correo_usuario,
+                    contrasena_usuario: form.contrasena_usuario
+                };
+
+                const responseSistema = await fetch("https://datainsightscloud.com/Apis/user_sistema.php", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(sistemaData),
+                });
+
+                const dataSistema = await responseSistema.json();
+
+                if (!dataSistema.success) {
+                    throw new Error(dataSistema.message || "Error al guardar los datos del usuario del sistema");
+                }
+            }
+
+            // Si todo salió bien, mostramos mensaje de éxito
+            toast.success(editingId ? "Usuario actualizado correctamente" : "Usuario guardado correctamente");
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+
+            // Resetear formulario
+            resetForm();
+
+            // Recargar la lista de usuarios
+            const responseUsuarios = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
+            const dataUsuarios = await responseUsuarios.json();
+            if (dataUsuarios?.success && Array.isArray(dataUsuarios.data)) {
+                setUsuarios(dataUsuarios.data);
+            }
+
         } catch (error) {
-            toast.error("Error de conexión");
+            toast.error(error instanceof Error ? error.message : "Error de conexión");
             console.error("Error saving user:", error);
         } finally {
             setLoading(false);
@@ -218,7 +283,6 @@ const UserManagement: React.FC = () => {
             rol.toLowerCase().includes(searchTerm.toLowerCase())
         );
     });
-
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -377,6 +441,95 @@ const UserManagement: React.FC = () => {
                                 </div>
                             </div>
 
+                            {form.zona_asignada && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Municipio</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <MapPin className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <select
+                                            name="municipio_asignado"
+                                            value={form.municipio_asignado}
+                                            onChange={handleChange}
+                                            disabled={loadingMunicipios}
+                                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                                        >
+                                            <option value="">{loadingMunicipios ? "Cargando..." : "Seleccionar municipio"}</option>
+                                            {municipios.map(municipio => (
+                                                <option key={municipio.id} value={municipio.id.toString()}>{municipio.nombre}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">¿Es usuario del sistema?</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Shield className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <select
+                                        name="es_usuario_sistema"
+                                        value={form.es_usuario_sistema}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                                    >
+                                        <option value="0">No</option>
+                                        <option value="1">Sí</option>
+                                    </select>
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {form.es_usuario_sistema === "1" && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Mail className="w-4 h-4 text-gray-400" />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                name="correo_usuario"
+                                                value={form.correo_usuario}
+                                                onChange={handleChange}
+                                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="correo@ejemplo.com"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Lock className="w-4 h-4 text-gray-400" />
+                                            </div>
+                                            <input
+                                                type="password"
+                                                name="contrasena_usuario"
+                                                value={form.contrasena_usuario}
+                                                onChange={handleChange}
+                                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Contraseña"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
                             <button
                                 type="submit"
                                 disabled={loading}
@@ -460,6 +613,12 @@ const UserManagement: React.FC = () => {
                                                             <div className="text-sm font-medium text-gray-900">
                                                                 {usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}
                                                             </div>
+                                                            {usuario.ES_USUARIO_SISTEMA === 1 && (
+                                                                <div className="text-xs text-blue-600 flex items-center mt-1">
+                                                                    <Shield className="w-3 h-3 mr-1" />
+                                                                    Usuario del sistema
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="py-3 px-2 text-sm text-gray-700">{usuario.TELEFONO_USUARIO}</td>
@@ -481,13 +640,6 @@ const UserManagement: React.FC = () => {
                                                                 title="Editar"
                                                             >
                                                                 <Edit2 className="w-4 h-4 text-blue-600" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(usuario.ID_USUARIO)}
-                                                                className="p-1 rounded-full bg-red-100 hover:bg-red-200 transition-colors"
-                                                                title="Eliminar"
-                                                            >
-                                                                <Trash2 className="w-4 h-4 text-red-600" />
                                                             </button>
                                                         </div>
                                                     </td>

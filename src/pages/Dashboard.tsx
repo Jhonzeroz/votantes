@@ -251,8 +251,6 @@ const descargarExcel = async () => {
       'Documento': votante.NUM_DOC,
       'Nombre Completo': votante.NOMBRE_COMPLETO,
       'Mesa': votante.MESA,
-      'Puesto': votante.PUESTO,
-      'Lugar de Votación': votante.LUGAR_VOTACION,
       'Municipio': votante.ZONA_NOMBRE,
       'Usuario Asignado': votante.USUARIO_NOMBRE,
       'Fecha de Registro': votante.CREADO_EN
@@ -337,7 +335,7 @@ const descargarExcel = async () => {
       currentRow++;
 
       // Encabezados del detalle
-      const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'PUESTO', 'LUGAR DE VOTACIÓN', 'MUNICIPIO', 'FECHA DE REGISTRO'];
+      const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'MUNICIPIO', 'FECHA DE REGISTRO'];
       XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
       
       // Aplicar estilo a los encabezados del detalle
@@ -735,40 +733,9 @@ const descargarExcel = async () => {
 
             </div>
 
-            {/* NUEVOS CAMPOS: Puesto y Lugar de votación */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Puesto
-              </label>
-              <div className="relative">
-                <input
-                  name="puesto"
-                  value={form.puesto}
-                  onChange={handleChange}
-                  placeholder="Ej: I.E. Central, Bloque B"
-                  className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner placeholder-slate-400
-                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pl-10"
-                />
-                <Building2 className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              </div>
-            </div>
+          
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Lugar de votación
-              </label>
-              <div className="relative">
-                <input
-                  name="lugar_votacion"
-                  value={form.lugar_votacion}
-                  onChange={handleChange}
-                  placeholder="Ej: Montería, Córdoba"
-                  className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner placeholder-slate-400
-                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pl-10"
-                />
-                <MapPin className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              </div>
-            </div>
+       
 
             {/* Nombres */}
             <div>

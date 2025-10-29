@@ -1,274 +1,381 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { UserX, Loader2, BarChart3, X, ChevronLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
-// Le decimos a TypeScript que existe una variable global 'L' (de Leaflet)
+
+// Leaflet global
+declare global {
+  interface Window { L: any; }
+}
 declare var L: any;
 
-// --- Definición de Tipos ---
-interface ZoneData {
-    id_zona: number;
-    nombre_zona: string;
-    id_lider: number | null;
-    nombre_lider: string;
-    total_votantes: number;
+// --- Tipos ---
+interface DeptData {
+  id_dpto: number;
+  nombre_dpto: string;
+  id_lider: number | null;
+  nombre_lider: string;
+  total_votantes: number;
 }
 
-// --- IMPORTANTE: Coordenadas de las Zonas ---
-// Debes rellenar este objeto con las coordenadas reales de tus zonas.
-const zoneCoordinates: { [key: string]: [number, number] } = {
-    "HIPODROMO": [10.9833, -74.7967],
-    "OASIS": [10.9900, -74.8000],
-    "BARRANQUILLA": [10.9833, -74.7967],
-    "SOLEDAD": [10.9185, -74.7629],
-    "MALAMBO": [10.8617, -74.7717],
-    "GALAPA": [10.8928, -74.8989],
-    // Añade aquí el resto de tus zonas con sus coordenadas
+type AggDept = {
+  key: string;                 // nombre normalizado (clave)
+  nombre: string;              // nombre a mostrar (primer casing visto)
+  total_votantes: number;      // suma total
+  id_lider: number | null;     // líder escogido (prefiere el que tenga votos)
+  nombre_lider: string;        // idem
+  ids: number[];               // ids originales agrupados (debug/uso futuro)
 };
 
-const VoterMapView: React.FC = () => {
-    const [zoneData, setZoneData] = useState<ZoneData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [activeZoneId, setActiveZoneId] = useState<number | null>(null);
-    const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstanceRef = useRef<any>(null);
-    const markersRef = useRef<any>({}); // Para guardar las referencias a los marcadores
+// --- Coordenadas por DEPARTAMENTO ---
+const departmentCoordinates: { [key: string]: [number, number] } = {
+  "ANTIOQUIA": [6.5546, -75.5742],
+  "ATLANTICO": [10.9639, -74.7963],
+  "BOLIVAR": [10.4236, -75.5253],
+  "MAGDALENA": [11.2408, -74.1990],
+};
 
-    useEffect(() => {
-        const loadLeafletScript = () => {
-            return new Promise<void>((resolve, reject) => {
-                if (window.L) {
-                    resolve();
-                    return;
+
+
+// --- Helpers ---
+const normalize = (s: string) =>
+  s.normalize("NFD")
+   .replace(/[\u0300-\u036f]/g, "")
+   .replace(/’/g, "'")
+   .trim()
+   .toUpperCase();
+
+function aggregateByDeptName(data: DeptData[]): AggDept[] {
+  const map = new Map<string, AggDept>();
+
+  for (const d of data) {
+    const key = normalize(d.nombre_dpto || "");
+    const curr = map.get(key);
+
+    if (!curr) {
+      map.set(key, {
+        key,
+        nombre: d.nombre_dpto,
+        total_votantes: d.total_votantes || 0,
+        id_lider: d.total_votantes > 0 ? d.id_lider : null,
+        nombre_lider: d.total_votantes > 0 ? d.nombre_lider : (d.id_lider ? d.nombre_lider : "Sin líder asignado"),
+        ids: [d.id_dpto],
+      });
+    } else {
+      // sumar votantes
+      curr.total_votantes += (d.total_votantes || 0);
+
+      // si este registro tiene votos y líder, priorízalo
+      if ((d.total_votantes || 0) > 0 && d.id_lider !== null) {
+        curr.id_lider = d.id_lider;
+        curr.nombre_lider = d.nombre_lider;
+      } else if (curr.id_lider === null && d.id_lider !== null) {
+        // si no hay líder aún, toma cualquiera disponible
+        curr.id_lider = d.id_lider;
+        curr.nombre_lider = d.nombre_lider;
+      }
+
+      curr.ids.push(d.id_dpto);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+const VoterMapByDepartment: React.FC = () => {
+  const [rawData, setRawData] = useState<DeptData[]>([]);
+  const [aggData, setAggData] = useState<AggDept[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeDeptKey, setActiveDeptKey] = useState<string | null>(null);
+
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<Record<string, any>>({}); // por nombre normalizado
+
+
+
+  useEffect(() => {
+  console.log("rawData:", rawData);
+}, [rawData]);
+
+
+  // Carga CSS/JS de Leaflet
+  const loadLeafletAssets = () => {
+    const ensureCss = () =>
+      new Promise<void>((resolve, reject) => {
+        const id = "leaflet-css";
+        if (document.getElementById(id)) return resolve();
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
+        link.crossOrigin = "";
+        link.onload = () => resolve();
+        link.onerror = () => reject(new Error("Failed to load Leaflet CSS"));
+        document.head.appendChild(link);
+      });
+
+    const ensureJs = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.L) return resolve();
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=";
+        script.crossOrigin = "";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Failed to load Leaflet script"));
+        document.head.appendChild(script);
+      });
+
+    return Promise.all([ensureCss(), ensureJs()]);
+  };
+
+  useEffect(() => {
+    const initializeMap = async () => {
+      try {
+        await loadLeafletAssets();
+
+        // ✅ Usa el API por DEPARTAMENTO
+        const response = await fetch(
+          "https://datainsightscloud.com/Apis/mapa_votantes_zona.php?_t=" + Date.now()
+        );
+        const result = await response.json();
+        if (!result?.success) throw new Error(result.message || "Error al cargar datos del mapa");
+
+        const incoming: DeptData[] = result.data || [];
+        setRawData(incoming);
+
+        // Agrupa por nombre y filtra para mapa/lista (solo > 0)
+        const grouped = aggregateByDeptName(incoming);
+        setAggData(grouped);
+
+        setTimeout(() => {
+          if (mapRef.current && window.L) {
+            const map = L.map(mapRef.current).setView([9.5, -74.8], 6);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            }).addTo(map);
+            setTimeout(() => map.invalidateSize(), 200);
+            mapInstanceRef.current = map;
+
+            // Icono
+            const createCustomIcon = (dept: AggDept) => {
+              const hasLeader = dept.id_lider !== null;
+              const iconColor = hasLeader ? "bg-green-500" : "bg-red-500";
+              return L.divIcon({
+                className: "custom-marker",
+                html: `
+                  <div class="relative flex flex-col items-center">
+                    <div class="${iconColor} text-white text-xs font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white">
+                      ${dept.total_votantes}
+                    </div>
+                    <div class="bg-white rounded-md px-2 py-1 shadow-md border border-gray-200 mt-1">
+                      <p class="text-xs font-semibold text-gray-700 whitespace-nowrap">${dept.nombre}</p>
+                    </div>
+                  </div>
+                `,
+                iconSize: [90, 48],
+                iconAnchor: [45, 45],
+                popupAnchor: [0, -38],
+              });
+            };
+
+            // Marcadores (solo > 0) y por clave normalizada
+            grouped
+              .filter((d) => d.total_votantes > 0)
+              .forEach((dept) => {
+                const position = departmentCoordinates[dept.key];
+                if (!position) {
+                  console.warn(`Sin coordenadas para: ${dept.nombre} (${dept.key})`);
+                  return;
                 }
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
-                script.crossOrigin = '';
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error('Failed to load Leaflet script'));
-                document.head.appendChild(script);
-            });
-        };
 
-        const initializeMap = async () => {
-            try {
-                // 1. Cargar el script de Leaflet
-                await loadLeafletScript();
+                const popupContent = `
+                  <div class="p-3 min-w-[240px] font-sans">
+                    <h3 class="font-bold text-lg text-gray-800 mb-3 border-b pb-2">${dept.nombre}</h3>
+                    <div class="space-y-2 text-sm">
+                      <p class="flex items-center justify-between">
+                        <span class="font-medium text-gray-600">Líder:</span>
+                        <span class="${dept.id_lider ? "text-green-600" : "text-red-500"} font-semibold">
+                          ${dept.nombre_lider || "Sin líder asignado"}
+                        </span>
+                      </p>
+                      <p class="flex items-center justify-between">
+                        <span class="font-medium text-gray-600">Votantes:</span>
+                        <span class="text-indigo-600 font-bold text-lg">${dept.total_votantes}</span>
+                      </p>
+                    </div>
+                  </div>
+                `;
 
-                // 2. Cargar los datos de las zonas
-                const response = await fetch("https://datainsightscloud.com/Apis/mapa_votantes_zona.php");
-                const result = await response.json();
-                if (!result?.success) {
-                    throw new Error(result.message || "Error al cargar los datos del mapa");
-                }
-                setZoneData(result.data);
+                const marker = L.marker(position, { icon: createCustomIcon(dept) })
+                  .addTo(map)
+                  .bindPopup(popupContent);
 
-                // --- SOLUCIÓN CLAVE ---
-                // 3. Añadimos un pequeño retraso para asegurar que el contenedor del mapa esté listo
-                setTimeout(() => {
-                    if (mapRef.current && window.L) {
-                        const map = L.map(mapRef.current).setView([10.5, -74.8], 10);
-
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        }).addTo(map);
-
-                        // Forzar a Leaflet a recalcular su tamaño, crucial para la navegación
-                        setTimeout(() => {
-                            map.invalidateSize();
-                        }, 200);
-
-                        mapInstanceRef.current = map;
-
-                        // Función para crear marcadores personalizados
-                        const createCustomIcon = (zone: ZoneData) => {
-                            const hasLeader = zone.id_lider !== null;
-                            const iconColor = hasLeader ? 'bg-green-500' : 'bg-red-500';
-                            return L.divIcon({
-                                className: 'custom-marker',
-                                html: `
-                                    <div class="relative flex flex-col items-center">
-                                        <div class="${iconColor} text-white text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white">
-                                            ${zone.total_votantes}
-                                        </div>
-                                        <div class="bg-white rounded-md px-2 py-1 shadow-md border border-gray-200 mt-1">
-                                            <p class="text-xs font-semibold text-gray-700 whitespace-nowrap">${zone.nombre_zona}</p>
-                                        </div>
-                                    </div>
-                                `,
-                                iconSize: [80, 40],
-                                iconAnchor: [40, 40],
-                                popupAnchor: [0, -35],
-                            });
-                        };
-
-                        // Añadir los marcadores
-                        result.data.forEach((zone: ZoneData) => {
-                            const position = zoneCoordinates[zone.nombre_zona];
-                            if (!position) {
-                                console.warn(`No se encontraron coordenadas para la zona: ${zone.nombre_zona}`);
-                                return;
-                            }
-
-                            const popupContent = `
-                                <div class="p-3 min-w-[220px] font-sans">
-                                    <h3 class="font-bold text-lg text-gray-800 mb-3 border-b pb-2">${zone.nombre_zona}</h3>
-                                    <div class="space-y-2 text-sm">
-                                        <p class="flex items-center justify-between">
-                                            <span class="font-medium text-gray-600">Líder:</span>
-                                            <span class="${zone.id_lider ? 'text-green-600' : 'text-red-500'} font-semibold">
-                                                ${zone.nombre_lider}
-                                            </span>
-                                        </p>
-                                        <p class="flex items-center justify-between">
-                                            <span class="font-medium text-gray-600">Votantes:</span>
-                                            <span class="text-indigo-600 font-bold text-lg">${zone.total_votantes}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            `;
-
-                            const marker = L.marker(position, { icon: createCustomIcon(zone) })
-                                .addTo(map)
-                                .bindPopup(popupContent);
-
-                            markersRef.current[zone.id_zona] = marker;
-                        });
-                    }
-                }, 150); // Un pequeño retraso de 150ms
-
-            } catch (e: any) {
-                setError(e.message);
-                toast.error(e.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        initializeMap();
-
-        // Función de limpieza para cuando el componente se desmonte
-        return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.remove();
-            }
-        };
-    }, []); // El array vacío asegura que se ejecute solo una vez
-
-    // ... (El resto del código del componente se mantiene igual)
-    const focusOnZone = (zone: ZoneData) => {
-        const position = zoneCoordinates[zone.nombre_zona];
-        if (!position || !mapInstanceRef.current) return;
-
-        mapInstanceRef.current.setView(position, 13, { animate: true });
-        setActiveZoneId(zone.id_zona);
-
-        const marker = markersRef.current[zone.id_zona];
-        if (marker) {
-            marker.openPopup();
-        }
+                markersRef.current[dept.key] = marker;
+              });
+          }
+        }, 150);
+      } catch (e: any) {
+        setError(e.message);
+        toast.error(e.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const totalVoters = zoneData.reduce((sum, zone) => sum + zone.total_votantes, 0);
-    const zonesWithLeader = zoneData.filter(z => z.id_lider).length;
+    initializeMap();
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-gray-100">
-                <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
-            </div>
-        );
-    }
+    return () => {
+      if (mapInstanceRef.current) mapInstanceRef.current.remove();
+    };
+  }, []);
 
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-100 text-red-600">
-                <p className="text-xl font-semibold">Error al cargar el mapa</p>
-                <p>{error}</p>
-            </div>
-        );
-    }
+  // Foco por departamento agrupado
+  const focusOnDepartment = (dept: AggDept) => {
+    const position = departmentCoordinates[dept.key];
+    if (!position || !mapInstanceRef.current) return;
 
+    mapInstanceRef.current.setView(position, 7, { animate: true });
+    setActiveDeptKey(dept.key);
+
+    const marker = markersRef.current[dept.key];
+    if (marker) marker.openPopup();
+  };
+
+  // KPIs (sobre agrupación)
+  const listData = aggData.filter((d) => d.total_votantes > 0); // lo que se muestra
+  const totalVoters = listData.reduce((sum, d) => sum + d.total_votantes, 0);
+  const totalDptos = listData.length;
+  const deptsWithLeader = listData.filter((d) => d.id_lider).length;
+
+  if (loading) {
     return (
-        <div className="h-screen w-full flex">
-            <div className={`bg-white shadow-xl transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
-                <div className="p-4 border-b">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                            <BarChart3 className="w-6 h-6 mr-2 text-indigo-600" />
-                            Panel de Zonas
-                        </h2>
-                        <button onClick={() => setIsSidebarOpen(false)} className="p-1 rounded-lg hover:bg-gray-100">
-                            <X className="w-5 h-5 text-gray-600" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
-                            <p className="text-indigo-600 text-xs font-medium">Total Zonas</p>
-                            <p className="text-2xl font-bold text-indigo-800">{zoneData.length}</p>
-                        </div>
-                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                            <p className="text-green-600 text-xs font-medium">Con Líder</p>
-                            <p className="text-2xl font-bold text-green-800">{zonesWithLeader}</p>
-                        </div>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <p className="text-gray-600 text-xs font-medium">Total Votantes</p>
-                        <p className="text-2xl font-bold text-gray-800">{totalVoters}</p>
-                    </div>
-
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Lista de Zonas</h3>
-                        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
-                            {zoneData.map((zone) => (
-                                <div
-                                    key={zone.id_zona}
-                                    onClick={() => focusOnZone(zone)}
-                                    className={`p-2 rounded-lg cursor-pointer transition-colors duration-200 flex items-center justify-between ${activeZoneId === zone.id_zona ? 'bg-indigo-100 border border-indigo-300' : 'hover:bg-gray-100'}`}
-                                >
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-800">{zone.nombre_zona}</p>
-                                        <p className="text-xs text-gray-500">{zone.total_votantes} votantes</p>
-                                    </div>
-                                    {zone.id_lider ? (
-                                        <span title="Con líder">
-                                            <UserX className="w-4 h-4 text-green-500" />
-                                        </span>
-                                    ) : (
-                                        <span title="Sin líder">
-                                            <UserX className="w-4 h-4 text-red-500" />
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 relative">
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md z-10 p-4">
-                    {!isSidebarOpen && (
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="absolute top-4 left-4 z-10 bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-                        >
-                            <ChevronLeft className="w-6 h-6 text-gray-700" />
-                        </button>
-                    )}
-                    <h1 className="text-2xl font-bold text-white">Mapa de Votantes por Zona</h1>
-                    <p className="text-sm text-blue-100">Explora las zonas y haz clic en los marcadores para ver los detalles.</p>
-                </div>
-                <div ref={mapRef} className="w-full h-full" style={{ marginTop: '80px' }} />
-            </div>
-        </div>
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 text-red-600">
+        <p className="text-xl font-semibold">Error al cargar el mapa</p>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen w-full flex">
+      {/* Sidebar */}
+      <div className={`bg-white shadow-xl transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-80" : "w-0"} overflow-hidden`}>
+       <div className="p-4 border-b">
+  <div className="flex items-center justify-between">
+    <h2 className="text-xl font-bold text-gray-800 flex items-center">
+      <BarChart3 className="w-6 h-6 mr-2 text-indigo-600" />
+      Panel de Departamentos
+    </h2>
+
+    <div className="flex items-center gap-2">
+      {/* Botón para volver al Dashboard */}
+      <Link
+        to="/dashboard"
+        className="p-2 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all"
+        title="Volver al Dashboard"
+      >
+        <ChevronLeft className="w-5 h-5 text-blue-600" />
+      </Link>
+
+      {/* Botón para cerrar panel */}
+      <button
+        onClick={() => setIsSidebarOpen(false)}
+        className="p-2 rounded-lg hover:bg-gray-100"
+        title="Cerrar panel"
+      >
+        <X className="w-5 h-5 text-gray-600" />
+      </button>
+    </div>
+  </div>
+</div>
+
+
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+              <p className="text-indigo-600 text-xs font-medium">Total Dptos</p>
+              <p className="text-2xl font-bold text-indigo-800">{totalDptos}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <p className="text-green-600 text-xs font-medium">Con Líder</p>
+              <p className="text-2xl font-bold text-green-800">{deptsWithLeader}</p>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <p className="text-gray-600 text-xs font-medium">Total Votantes</p>
+            <p className="text-2xl font-bold text-gray-800">{totalVoters}</p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Lista de Departamentos</h3>
+            <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
+              {listData.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-6">
+                  No hay departamentos con votantes registrados.
+                </p>
+              ) : (
+                listData.map((dept) => (
+                  <div
+                    key={dept.key}
+                    onClick={() => focusOnDepartment(dept)}
+                    className={`p-2 rounded-lg cursor-pointer transition-colors duration-200 flex items-center justify-between ${
+                      activeDeptKey === dept.key ? "bg-indigo-100 border border-indigo-300" : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{dept.nombre}</p>
+                      <p className="text-xs text-gray-500">{dept.total_votantes} votantes</p>
+                    </div>
+                    {dept.id_lider ? (
+                      <span title="Con líder">
+                        <UserX className="w-4 h-4 text-green-500 rotate-45" />
+                      </span>
+                    ) : (
+                      <span title="Sin líder">
+                        <UserX className="w-4 h-4 text-red-500" />
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mapa */}
+      <div className="flex-1 relative">
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md z-10 p-4">
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="absolute top-4 left-4 z-10 bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <ChevronLeft className="w-6 h-6 text-gray-700" />
+            </button>
+          )}
+          <h1 className="text-2xl font-bold text-white">Mapa de Votantes por Departamento</h1>
+          <p className="text-sm text-blue-100">Explora los departamentos y haz clic en los marcadores para ver detalles.</p>
+        </div>
+        <div ref={mapRef} className="w-full h-full" style={{ marginTop: "80px" }} />
+      </div>
+    </div>
+  );
 };
 
-export default VoterMapView;
+export default VoterMapByDepartment;
