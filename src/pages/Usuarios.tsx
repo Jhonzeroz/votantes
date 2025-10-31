@@ -24,7 +24,6 @@ interface Usuario {
     ZONA_ASIGNADA: number;
     NOMBRE_ZONA: string;
     CORREO_USUARIO?: string;
-    ES_USUARIO_SISTEMA?: number;
 }
 
 interface FormState {
@@ -35,7 +34,6 @@ interface FormState {
     estado_usuario: string;
     zona_asignada: string;
     municipio_asignado: string;
-    es_usuario_sistema: string;
     correo_usuario: string;
     contrasena_usuario: string;
 }
@@ -49,7 +47,6 @@ const UserManagement: React.FC = () => {
         estado_usuario: "1", // Por defecto Activo
         zona_asignada: "",
         municipio_asignado: "",
-        es_usuario_sistema: "0", // Por defecto No
         correo_usuario: "",
         contrasena_usuario: ""
     });
@@ -156,7 +153,6 @@ const UserManagement: React.FC = () => {
             estado_usuario: usuario.ESTADO_USUARIO.toString(),
             zona_asignada: usuario.ZONA_ASIGNADA.toString(),
             municipio_asignado: "",
-            es_usuario_sistema: usuario.ES_USUARIO_SISTEMA?.toString() || "0",
             correo_usuario: usuario.CORREO_USUARIO || "",
             contrasena_usuario: "" 
         });
@@ -172,7 +168,6 @@ const UserManagement: React.FC = () => {
             estado_usuario: "1",
             zona_asignada: "",
             municipio_asignado: "",
-            es_usuario_sistema: "0",
             correo_usuario: "",
             contrasena_usuario: ""
         });
@@ -187,13 +182,13 @@ const UserManagement: React.FC = () => {
             return toast.error("Todos los campos son obligatorios");
         }
 
-        // Validación adicional si es usuario del sistema
-        if (form.es_usuario_sistema === "1") {
-            if (!form.correo_usuario || !form.contrasena_usuario) {
-                return toast.error("Para usuarios del sistema, el correo y la contraseña son obligatorios");
-            }
-            
-            // Validación básica de email
+        // Validación de contraseña
+        if (!form.contrasena_usuario) {
+            return toast.error("La contraseña es obligatoria");
+        }
+
+        // Validación de email si se proporciona
+        if (form.correo_usuario) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(form.correo_usuario)) {
                 return toast.error("Por favor, ingrese un correo electrónico válido");
@@ -203,12 +198,12 @@ const UserManagement: React.FC = () => {
         setLoading(true);
 
         try {
-            // Primero, guardamos el usuario regular con la API existente
-            const urlRegular = editingId
+            // Guardamos el usuario con la API existente
+            const url = editingId
                 ? `https://datainsightscloud.com/Apis/usuario_update.php?id=${editingId}`
                 : "https://datainsightscloud.com/Apis/usuario_create.php";
 
-            const responseRegular = await fetch(urlRegular, {
+            const response = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -216,34 +211,10 @@ const UserManagement: React.FC = () => {
                 body: JSON.stringify(form),
             });
 
-            const dataRegular = await responseRegular.json();
+            const data = await response.json();
 
-            if (!dataRegular.success) {
-                throw new Error(dataRegular.message || "Error al guardar el usuario regular");
-            }
-
-            // Si es usuario del sistema, también guardamos los datos del sistema
-            if (form.es_usuario_sistema === "1") {
-                // Preparamos los datos para el API de usuario del sistema
-                const sistemaData = {
-                    id_usuario: editingId || dataRegular.id_usuario, // Usamos el ID del usuario existente o el recién creado
-                    correo_usuario: form.correo_usuario,
-                    contrasena_usuario: form.contrasena_usuario
-                };
-
-                const responseSistema = await fetch("https://datainsightscloud.com/Apis/user_sistema.php", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(sistemaData),
-                });
-
-                const dataSistema = await responseSistema.json();
-
-                if (!dataSistema.success) {
-                    throw new Error(dataSistema.message || "Error al guardar los datos del usuario del sistema");
-                }
+            if (!data.success) {
+                throw new Error(data.message || "Error al guardar el usuario");
             }
 
             // Si todo salió bien, mostramos mensaje de éxito
@@ -470,65 +441,39 @@ const UserManagement: React.FC = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">¿Es usuario del sistema?</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Shield className="w-4 h-4 text-gray-400" />
+                                        <Mail className="w-4 h-4 text-gray-400" />
                                     </div>
-                                    <select
-                                        name="es_usuario_sistema"
-                                        value={form.es_usuario_sistema}
+                                    <input
+                                        type="email"
+                                        name="correo_usuario"
+                                        value={form.correo_usuario}
                                         onChange={handleChange}
-                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                                    >
-                                        <option value="0">No</option>
-                                        <option value="1">Sí</option>
-                                    </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
+                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="correo@ejemplo.com"
+                                    />
                                 </div>
                             </div>
 
-                            {form.es_usuario_sistema === "1" && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Mail className="w-4 h-4 text-gray-400" />
-                                            </div>
-                                            <input
-                                                type="email"
-                                                name="correo_usuario"
-                                                value={form.correo_usuario}
-                                                onChange={handleChange}
-                                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="correo@ejemplo.com"
-                                            />
-                                        </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Lock className="w-4 h-4 text-gray-400" />
                                     </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Lock className="w-4 h-4 text-gray-400" />
-                                            </div>
-                                            <input
-                                                type="password"
-                                                name="contrasena_usuario"
-                                                value={form.contrasena_usuario}
-                                                onChange={handleChange}
-                                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="Contraseña"
-                                            />
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                                    <input
+                                        type="password"
+                                        name="contrasena_usuario"
+                                        value={form.contrasena_usuario}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="Contraseña"
+                                        required
+                                    />
+                                </div>
+                            </div>
 
                             <button
                                 type="submit"
@@ -613,12 +558,6 @@ const UserManagement: React.FC = () => {
                                                             <div className="text-sm font-medium text-gray-900">
                                                                 {usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}
                                                             </div>
-                                                            {usuario.ES_USUARIO_SISTEMA === 1 && (
-                                                                <div className="text-xs text-blue-600 flex items-center mt-1">
-                                                                    <Shield className="w-3 h-3 mr-1" />
-                                                                    Usuario del sistema
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="py-3 px-2 text-sm text-gray-700">{usuario.TELEFONO_USUARIO}</td>

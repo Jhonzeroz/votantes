@@ -160,7 +160,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.id_zona_asignada || !form.id_usuario_asignado) {
-      return toast.warning("Selecciona zona y usuario asignado");
+      return toast.warning("Selecciona un municipio y usuario asignado");
     }
     if (!form.num_doc || !form.nombre1 || !form.apellido1) {
       return toast.warning(
@@ -711,7 +711,7 @@ const descargarExcel = async () => {
               />
             </div>
 
-            <div>
+            <div className="hidden" >
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Mesa
               </label>
@@ -831,7 +831,7 @@ const descargarExcel = async () => {
             {/* Relaciones */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Zona Asignada
+                Municipio
               </label>
               <select
                 name="id_zona_asignada"
@@ -841,7 +841,7 @@ const descargarExcel = async () => {
                 className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
                            focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
               >
-                <option value="">-- Seleccione zona --</option>
+                <option value="">-- Seleccione un Municipio --</option>
                 {zonasState.map((z) => (
                   <option key={z.id} value={String(z.id)}>
                     {z.nombre}
@@ -849,26 +849,26 @@ const descargarExcel = async () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Usuario asignado
-              </label>
-              <select
-                name="id_usuario_asignado"
-                value={form.id_usuario_asignado}
-                onChange={handleChange}
-                required
-                className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
-                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
-              >
-                <option value="">-- Seleccione usuario --</option>
-                {usuariosState.map((u) => (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div>
+  <label className="block text-sm font-medium text-slate-700 mb-1">
+    Usuario asignado
+  </label>
+  <select
+    name="id_usuario_asignado"
+    value={form.id_usuario_asignado}
+    onChange={handleChange}
+    required
+    className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
+               focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+  >
+    <option value="">-- Seleccione usuario --</option>
+    {usuariosState.map((u) => (
+      <option key={u.id} value={String(u.id)}>
+        {u.nombre.toUpperCase()}
+      </option>
+    ))}
+  </select>
+</div>
 
             <div className="md:col-span-2 flex items-center justify-end gap-3 pt-4">
               {form !== initialForm && (
