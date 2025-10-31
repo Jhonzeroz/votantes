@@ -351,9 +351,7 @@ const UserManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
                                     >
                                         <option value="">Seleccionar rol</option>
-                                        <option value="MAGISTERIO">Magisterio</option>
-                                        <option value="DOCENTE">Docente</option>
-                                        <option value="EMPLEADO">Empleado</option>
+                                        <option value="LIDER">Lider</option>
                                     </select>
                                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
