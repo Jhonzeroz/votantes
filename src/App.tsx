@@ -12,6 +12,7 @@ import MunicipalityManagement from './pages/MunicipalityManagement';
 import ZoneManagement from './pages/ZoneManagement';
 import OrganizationalDashboard from './pages/OrganizationalDashboard';
 import VoterMapView from './pages/VoterMapView';
+import VotanteManagement from './pages/VotanteManagement';
 
 
 
@@ -40,6 +41,7 @@ const App: React.FC = () => {
         <Route path="/Zonas" element={<ZoneManagement />} />
         <Route path="/Organizacion" element={<OrganizationalDashboard />} />
         <Route path="/Mapa" element={<VoterMapView />} />
+        <Route path="/VotanteManagement" element={<VotanteManagement />} />
 
 
 

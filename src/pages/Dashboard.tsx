@@ -17,7 +17,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import * as XLSX from 'xlsx'; // Importamos la librería xlsx
+import * as XLSX from 'xlsx';
 
 /**
  * Props de este módulo.
@@ -45,6 +45,7 @@ interface VotantesViewProps {
 
 const defaultAPIVOT = "https://datainsightscloud.com/Apis";
 
+// CAMBIO 1: Eliminamos 'mesa' del estado inicial
 const initialForm = {
   tipo_doc: "CC",
   num_doc: "",
@@ -56,7 +57,6 @@ const initialForm = {
   direccion: "",
   id_zona_asignada: "",
   id_usuario_asignado: "",
-  mesa: "",
   // NUEVOS CAMPOS
   puesto: "",
   lugar_votacion: "",
@@ -68,6 +68,7 @@ const tiposDoc = [
   { value: "PAS", label: "Pasaporte" },
 ];
 
+// Esta constante ya no se usa en el formulario, pero la mantenemos por si se usa en los filtros.
 const mesas100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
 
 const VotantesView: React.FC<VotantesViewProps> = ({
@@ -76,9 +77,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   APIVOT = defaultAPIVOT,
 }) => {
   const navigate = useNavigate();
-  // Estado para controlar el menú desplegable
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-  // Referencia para el menú desplegable
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Estados base
@@ -167,14 +166,15 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         "Documento, primer nombre y primer apellido son obligatorios"
       );
     }
-    // Mesa requerida (1..10)
-    if (!form.mesa) {
-      return toast.warning("Selecciona la mesa (1 a 10)");
-    }
+
+    // CAMBIO 2: Eliminamos la validación del campo 'mesa'
+    // if (!form.mesa) {
+    //   return toast.warning("Selecciona la mesa (1 a 10)");
+    // }
 
     setSaving(true);
     try {
-      // Enviamos todo el objeto (incluye puesto y lugar_votacion)
+      // Enviamos todo el objeto form (que ya no incluye 'mesa')
       const res = await fetch(`${APIVOT}/votante_create.php`, {
         method: "POST",
         body: new URLSearchParams(form as any),
@@ -204,7 +204,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       if (fMesa) params.set("mesa", fMesa);
       if (q) params.set("q", q);
 
-      // Si no hay filtros, obtenemos todos los votantes
       const res = await fetch(
         `${APIVOT}/votantes_search.php?${params.toString()}`
       ).then((r) => r.json());
@@ -219,188 +218,146 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
   };
 
+  const descargarExcel = async () => {
+    setExportandoExcel(true);
+    try {
+      const datos = await fetchAllVotantes();
 
-
-
-
-
-
-
-
-
-
-
-
-
-// Asumimos que tienes una interfaz o tipo para Votante
-// interface Votante { ... }
-
-const descargarExcel = async () => {
-  setExportandoExcel(true);
-  try {
-    const datos = await fetchAllVotantes();
-
-    if (datos.length === 0) {
-      toast.warning("No hay datos para exportar");
-      setExportandoExcel(false);
-      return;
-    }
-
-    // --- HOJA 1: DATOS ORIGINALES (Sin cambios) ---
-    const datosExcel = datos.map((votante: Votante) => ({
-      'Documento': votante.NUM_DOC,
-      'Nombre Completo': votante.NOMBRE_COMPLETO,
-      'Mesa': votante.MESA,
-      'Municipio': votante.ZONA_NOMBRE,
-      'Usuario Asignado': votante.USUARIO_NOMBRE,
-      'Fecha de Registro': votante.CREADO_EN
-    }));
-
-    const workbook = XLSX.utils.book_new();
-    const worksheetOriginal = XLSX.utils.json_to_sheet(datosExcel);
-    XLSX.utils.book_append_sheet(workbook, worksheetOriginal, "Votantes");
-
-    // --- HOJA 2: RESUMEN POR USUARIO (CON ESTILOS) ---
-
-    // 1. Definir los estilos que vamos a usar
-    const mainTitleStyle = {
-      font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "366092" } }, // Azul oscuro
-      alignment: { horizontal: "center", vertical: "center" }
-    };
-
-    const summaryHeaderStyle = {
-      font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "70AD47" } }, // Verde
-      alignment: { horizontal: "center", vertical: "center" }
-    };
-    
-    const userTitleStyle = {
-      font: { sz: 13, bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "5B9BD5" } }, // Azul medio
-      alignment: { horizontal: "left", vertical: "center" }
-    };
-
-    const detailHeaderStyle = {
-      font: { sz: 11, bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "A5A5A5" } }, // Gris
-      alignment: { horizontal: "center", vertical: "center", wrapText: true }
-    };
-
-    // 2. Agrupar los datos por usuario (usando el método seguro del bucle for...of)
-    type VotantesPorUsuario = Record<string, Votante[]>;
-    const datosAgrupadosPorUsuario: VotantesPorUsuario = {};
-    for (const votante of datos) {
-      const usuario = votante.USUARIO_NOMBRE || 'SIN ASIGNAR';
-      if (!datosAgrupadosPorUsuario[usuario]) {
-        datosAgrupadosPorUsuario[usuario] = [];
+      if (datos.length === 0) {
+        toast.warning("No hay datos para exportar");
+        setExportandoExcel(false);
+        return;
       }
-      datosAgrupadosPorUsuario[usuario].push(votante);
-    }
 
-    // 3. Crear la hoja de cálculo vacía para ir añadiendo celda por celda
-    const worksheetResumen: XLSX.WorkSheet = {};
-    let currentRow = 0; // Controlaremos la fila actual manualmente
+      const datosExcel = datos.map((votante: Votante) => ({
+        'Documento': votante.NUM_DOC,
+        'Nombre Completo': votante.NOMBRE_COMPLETO,
+        'Mesa': votante.MESA,
+        'Municipio': votante.ZONA_NOMBRE,
+        'Usuario Asignado': votante.USUARIO_NOMBRE,
+        'Fecha de Registro': votante.CREADO_EN
+      }));
 
-    // 4. Añadir el Título Principal
-    XLSX.utils.sheet_add_aoa(worksheetResumen, [['RESUMEN DE VOTANTES POR USUARIO']], { origin: `A${currentRow + 1}` });
-    worksheetResumen['A1'].s = mainTitleStyle;
-    currentRow++;
+      const workbook = XLSX.utils.book_new();
+      const worksheetOriginal = XLSX.utils.json_to_sheet(datosExcel);
+      XLSX.utils.book_append_sheet(workbook, worksheetOriginal, "Votantes");
 
-    // 5. Añadir la Tabla de Resumen
-    currentRow++; // Fila en blanco
-    const summaryHeaders = ['USUARIO ASIGNADO', 'CANTIDAD DE VOTANTES'];
-    XLSX.utils.sheet_add_aoa(worksheetResumen, [summaryHeaders], { origin: `A${currentRow + 1}` });
-    
-    // Aplicar estilo a los encabezados de la tabla de resumen
-    worksheetResumen['A' + (currentRow + 1)].s = summaryHeaderStyle;
-    worksheetResumen['B' + (currentRow + 1)].s = summaryHeaderStyle;
-    currentRow++;
+      const mainTitleStyle = {
+        font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "366092" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
 
-    // Añadir los datos a la tabla de resumen
-    for (const usuario in datosAgrupadosPorUsuario) {
-      XLSX.utils.sheet_add_aoa(worksheetResumen, [[usuario, datosAgrupadosPorUsuario[usuario].length]], { origin: `A${currentRow + 1}` });
-      currentRow++;
-    }
-
-    // 6. Añadir el Detalle por cada Usuario
-    for (const usuario in datosAgrupadosPorUsuario) {
-      const votantesDelUsuario = datosAgrupadosPorUsuario[usuario];
+      const summaryHeaderStyle = {
+        font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "70AD47" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
       
-      // Título para el usuario
-      currentRow++; // Fila en blanco
-      const userTitleText = `VOTANTES ASIGNADOS A: ${usuario.toUpperCase()} (TOTAL: ${votantesDelUsuario.length})`;
-      XLSX.utils.sheet_add_aoa(worksheetResumen, [[userTitleText]], { origin: `A${currentRow + 1}` });
-      worksheetResumen['A' + (currentRow + 1)].s = userTitleStyle;
+      const userTitleStyle = {
+        font: { sz: 13, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "5B9BD5" } },
+        alignment: { horizontal: "left", vertical: "center" }
+      };
+
+      const detailHeaderStyle = {
+        font: { sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "A5A5A5" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true }
+      };
+
+      type VotantesPorUsuario = Record<string, Votante[]>;
+      const datosAgrupadosPorUsuario: VotantesPorUsuario = {};
+      for (const votante of datos) {
+        const usuario = votante.USUARIO_NOMBRE || 'SIN ASIGNAR';
+        if (!datosAgrupadosPorUsuario[usuario]) {
+          datosAgrupadosPorUsuario[usuario] = [];
+        }
+        datosAgrupadosPorUsuario[usuario].push(votante);
+      }
+
+      const worksheetResumen: XLSX.WorkSheet = {};
+      let currentRow = 0;
+
+      XLSX.utils.sheet_add_aoa(worksheetResumen, [['RESUMEN DE VOTANTES POR USUARIO']], { origin: `A${currentRow + 1}` });
+      worksheetResumen['A1'].s = mainTitleStyle;
       currentRow++;
 
-      // Encabezados del detalle
-      const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'MUNICIPIO', 'FECHA DE REGISTRO'];
-      XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
+      currentRow++;
+      const summaryHeaders = ['USUARIO ASIGNADO', 'CANTIDAD DE VOTANTES'];
+      XLSX.utils.sheet_add_aoa(worksheetResumen, [summaryHeaders], { origin: `A${currentRow + 1}` });
       
-      // Aplicar estilo a los encabezados del detalle
-      detailHeaders.forEach((_, colIndex) => {
-        const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIndex });
-        if (!worksheetResumen[cellAddress]) return; // Seguridad por si acaso
-        worksheetResumen[cellAddress].s = detailHeaderStyle;
-      });
+      worksheetResumen['A' + (currentRow + 1)].s = summaryHeaderStyle;
+      worksheetResumen['B' + (currentRow + 1)].s = summaryHeaderStyle;
       currentRow++;
 
-      // Datos de los votantes
-      const voterData = votantesDelUsuario.map(v => [
-        v.NUM_DOC, v.NOMBRE_COMPLETO, v.MESA, v.PUESTO, v.LUGAR_VOTACION, v.ZONA_NOMBRE, v.CREADO_EN
-      ]);
-      XLSX.utils.sheet_add_aoa(worksheetResumen, voterData, { origin: `A${currentRow + 1}` });
-      currentRow += votantesDelUsuario.length;
+      for (const usuario in datosAgrupadosPorUsuario) {
+        XLSX.utils.sheet_add_aoa(worksheetResumen, [[usuario, datosAgrupadosPorUsuario[usuario].length]], { origin: `A${currentRow + 1}` });
+        currentRow++;
+      }
+
+      for (const usuario in datosAgrupadosPorUsuario) {
+        const votantesDelUsuario = datosAgrupadosPorUsuario[usuario];
+        
+        currentRow++;
+        const userTitleText = `VOTANTES ASIGNADOS A: ${usuario.toUpperCase()} (TOTAL: ${votantesDelUsuario.length})`;
+        XLSX.utils.sheet_add_aoa(worksheetResumen, [[userTitleText]], { origin: `A${currentRow + 1}` });
+        worksheetResumen['A' + (currentRow + 1)].s = userTitleStyle;
+        currentRow++;
+
+        const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'MUNICIPIO', 'FECHA DE REGISTRO'];
+        XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
+        
+        detailHeaders.forEach((_, colIndex) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIndex });
+          if (!worksheetResumen[cellAddress]) return;
+          worksheetResumen[cellAddress].s = detailHeaderStyle;
+        });
+        currentRow++;
+
+        const voterData = votantesDelUsuario.map(v => [
+          v.NUM_DOC, v.NOMBRE_COMPLETO, v.MESA, v.PUESTO, v.LUGAR_VOTACION, v.ZONA_NOMBRE, v.CREADO_EN
+        ]);
+        XLSX.utils.sheet_add_aoa(worksheetResumen, voterData, { origin: `A${currentRow + 1}` });
+        currentRow += votantesDelUsuario.length;
+      }
+
+      worksheetResumen['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+      ];
+      
+      let mergeStartRow = 4;
+      for (const usuario in datosAgrupadosPorUsuario) {
+        worksheetResumen['!merges'].push({
+          s: { r: mergeStartRow, c: 0 },
+          e: { r: mergeStartRow, c: 6 }
+        });
+        mergeStartRow += 2 + 1 + datosAgrupadosPorUsuario[usuario].length;
+      }
+
+      worksheetResumen['!cols'] = [
+        { wch: 15 },
+        { wch: 35 },
+        { wch: 8 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 20 },
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, worksheetResumen, "Resumen por Usuario");
+
+      const nombreArchivo = `reporte_votantes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, nombreArchivo);
+
+      toast.success("Archivo Excel descargado correctamente");
+    } catch (error) {
+      console.error("Error al exportar a Excel:", error);
+      toast.error("Error al exportar a Excel");
+    } finally {
+      setExportandoExcel(false);
     }
-
-    // 7. Definir los rangos de celdas a fusionar (merges)
-    worksheetResumen['!merges'] = [
-      // Fusionar el título principal (A1)
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
-    ];
-    
-    // Fusionar los títulos de cada usuario
-    let mergeStartRow = 4; // El primer título de usuario empieza en la fila 5 (índice 4)
-    for (const usuario in datosAgrupadosPorUsuario) {
-      worksheetResumen['!merges'].push({
-        s: { r: mergeStartRow, c: 0 },
-        e: { r: mergeStartRow, c: 6 } // Fusionar de la columna A a la G
-      });
-      // Calcular la siguiente posición de título de usuario
-      mergeStartRow += 2 + 1 + datosAgrupadosPorUsuario[usuario].length; // +2 (título y en blanco), +1 (encabezado), +n (datos)
-    }
-
-    // 8. Ajustar el ancho de las columnas para que se vea bien
-    worksheetResumen['!cols'] = [
-      { wch: 15 }, // Documento
-      { wch: 35 }, // Nombre Completo
-      { wch: 8 },  // Mesa
-      { wch: 25 }, // Puesto
-      { wch: 30 }, // Lugar de Votación
-      { wch: 20 }, // Municipio
-      { wch: 20 }, // Fecha de Registro
-    ];
-
-    // 9. Añadir la hoja formateada al libro
-    XLSX.utils.book_append_sheet(workbook, worksheetResumen, "Resumen por Usuario");
-
-    // 10. Generar y descargar el archivo
-    const nombreArchivo = `reporte_votantes_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    XLSX.writeFile(workbook, nombreArchivo);
-
-    toast.success("Archivo Excel descargado correctamente");
-  } catch (error) {
-    console.error("Error al exportar a Excel:", error);
-    toast.error("Error al exportar a Excel");
-  } finally {
-    setExportandoExcel(false);
-  }
-};
-
-
-
-
+  };
 
   // Debounce
   const debounced = <T extends (...args: any[]) => any>(fn: T, delay = 450) => {
@@ -438,13 +395,11 @@ const descargarExcel = async () => {
     }
   };
 
-  // Búsqueda: debounced para q y cambios inmediatos para filtros
   const debouncedSearch = useMemo(() => debounced(doSearch, 500), []);
   useEffect(() => {
     debouncedSearch(q, fZona, fUsuario, fMesa);
   }, [q, fZona, fUsuario, fMesa, debouncedSearch]);
 
-  // Cerrar el menú al hacer clic fuera - CORREGIDO
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -461,18 +416,15 @@ const descargarExcel = async () => {
     };
   }, [adminMenuOpen]);
 
-  // ======== UI (MODO CLARO + CARD 3D) ========
   return (
     <div className="min-h-screen bg-[#F7F8FB] text-slate-900 p-6">
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Columna izquierda: Formulario (CARD 3D) */}
         <section
           className="xl:col-span-2 rounded-3xl border border-slate-200
                      bg-gradient-to-br from-[#fdfdfd] to-[#f7f8fb]
                      shadow-[rgba(255,255,255,0.85)_-6px_-6px_12px,rgba(0,0,0,0.08)_8px_8px_16px]
                      transition hover:shadow-[rgba(255,255,255,0.9)_-6px_-6px_14px,rgba(0,0,0,0.12)_10px_10px_20px]"
         >
-          {/* Header con botón a la derecha */}
           <div className="p-6 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 shadow-inner">
@@ -510,7 +462,6 @@ const descargarExcel = async () => {
                transition-transform duration-200 ease-out hover:-translate-y-0.5 focus:outline-none
                focus:ring-2 focus:ring-blue-300"
               >
-                {/* Brillo diagonal */}
                 <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                   <span
                     className="absolute -left-10 top-0 h-full w-16 translate-x-0 -skew-x-12
@@ -523,7 +474,6 @@ const descargarExcel = async () => {
                 <span className="font-medium tracking-wide">Dashboard</span>
               </button>
 
-
               <button
                 type="button"
                 onClick={() => navigate("/Organizacion")}
@@ -535,7 +485,6 @@ const descargarExcel = async () => {
                transition-transform duration-200 ease-out hover:-translate-y-0.5 focus:outline-none
                focus:ring-2 focus:ring-blue-300"
               >
-                {/* Brillo diagonal */}
                 <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                   <span
                     className="absolute -left-10 top-0 h-full w-16 translate-x-0 -skew-x-12
@@ -548,7 +497,6 @@ const descargarExcel = async () => {
                 <span className="font-medium tracking-wide">Admin</span>
               </button>
 
-
               <button
                 type="button"
                 onClick={() => navigate("/Mapa")}
@@ -560,7 +508,6 @@ const descargarExcel = async () => {
                transition-transform duration-200 ease-out hover:-translate-y-0.5 focus:outline-none
                focus:ring-2 focus:ring-blue-300"
               >
-                {/* Brillo diagonal */}
                 <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                   <span
                     className="absolute -left-10 top-0 h-full w-16 translate-x-0 -skew-x-12
@@ -573,15 +520,6 @@ const descargarExcel = async () => {
                 <span className="font-medium tracking-wide"> Mapa </span>
               </button>
 
-
-
-
-
-
-
-
-
-              {/* Menú desplegable de administración - CORREGIDO */}
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
@@ -594,7 +532,6 @@ const descargarExcel = async () => {
                  transition-transform duration-200 ease-out hover:-translate-y-0.5 focus:outline-none
                  focus:ring-2 focus:ring-orange-300"
                 >
-                  {/* Brillo diagonal */}
                   <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                     <span
                       className="absolute -left-10 top-0 h-full w-16 translate-x-0 -skew-x-12
@@ -608,14 +545,12 @@ const descargarExcel = async () => {
                   <ChevronDown className={`w-4 h-4 transition-transform ${adminMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Menú desplegable */}
                 {adminMenuOpen && (
                   <div className="absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
                     <div className="py-1">
                       <button
                         type="button"
                         onClick={() => {
-                          console.log("Navegando a /Usuarios");
                           navigate("/Usuarios");
                           setAdminMenuOpen(false);
                         }}
@@ -624,6 +559,22 @@ const descargarExcel = async () => {
                         <User className="w-4 h-4" />
                         Usuarios
                       </button>
+
+
+                       <button
+                        type="button"
+                        onClick={() => {
+                          navigate("/VotanteManagement");
+                          setAdminMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Promover Usuario
+                      </button>
+
+
+
                       <button
                         type="button"
                         onClick={() => {
@@ -660,8 +611,6 @@ const descargarExcel = async () => {
                         <MapPin className="w-4 h-4" />
                         Zonas
                       </button>
-
-
                     </div>
                   </div>
                 )}
@@ -673,7 +622,6 @@ const descargarExcel = async () => {
             onSubmit={handleSubmit}
             className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {/* Documento */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Tipo de documento
@@ -711,32 +659,8 @@ const descargarExcel = async () => {
               />
             </div>
 
-            <div className="hidden" >
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Mesa
-              </label>
-              <select
-                name="mesa"
-                value={form.mesa}
-                onChange={handleChange}
-                required
-                className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
-             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
-              >
-                <option value="">-- Seleccione Mesa --</option>
-                {mesas100.map((n) => (
-                  <option key={n} value={n}>
-                    Mesa {n}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-
-          
-
-       
-
+            {/* CAMBIO 3: Eliminamos completamente el campo 'mesa' oculto del formulario */}
+            
             {/* Nombres */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -849,26 +773,26 @@ const descargarExcel = async () => {
                 ))}
               </select>
             </div>
-        <div>
-  <label className="block text-sm font-medium text-slate-700 mb-1">
-    Usuario asignado
-  </label>
-  <select
-    name="id_usuario_asignado"
-    value={form.id_usuario_asignado}
-    onChange={handleChange}
-    required
-    className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
-               focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
-  >
-    <option value="">-- Seleccione usuario --</option>
-    {usuariosState.map((u) => (
-      <option key={u.id} value={String(u.id)}>
-        {u.nombre.toUpperCase()}
-      </option>
-    ))}
-  </select>
-</div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Usuario asignado
+              </label>
+              <select
+                name="id_usuario_asignado"
+                value={form.id_usuario_asignado}
+                onChange={handleChange}
+                required
+                className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
+                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+              >
+                <option value="">-- Seleccione usuario --</option>
+                {usuariosState.map((u) => (
+                  <option key={u.id} value={String(u.id)}>
+                    {u.nombre.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="md:col-span-2 flex items-center justify-end gap-3 pt-4">
               {form !== initialForm && (
@@ -899,9 +823,8 @@ const descargarExcel = async () => {
           </form>
         </section>
 
-        {/* Columna derecha: Filtros + Últimos ingresos */}
+        {/* Columna derecha: Filtros + Últimos ingresos (sin cambios) */}
         <aside className="space-y-6">
-          {/* Buscador y filtros */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-5 h-5 text-blue-600" />
@@ -929,7 +852,6 @@ const descargarExcel = async () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {/* Mesa */}
                 <div className="relative">
                   <select
                     value={fMesa}
@@ -949,7 +871,6 @@ const descargarExcel = async () => {
                   <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
                 </div>
 
-                {/* Zona */}
                 <div className="relative">
                   <select
                     value={fZona}
@@ -968,7 +889,6 @@ const descargarExcel = async () => {
                   <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
                 </div>
 
-                {/* Usuario */}
                 <div className="relative  col-span-2">
                   <select
                     value={fUsuario}
@@ -988,7 +908,6 @@ const descargarExcel = async () => {
                 </div>
               </div>
 
-              {/* Resultados de búsqueda */}
               <div className="mt-2">
                 {buscando ? (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -1024,7 +943,6 @@ const descargarExcel = async () => {
             </div>
           </div>
 
-          {/* Últimos ingresos */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <Users className="w-5 h-5 text-emerald-600" />
