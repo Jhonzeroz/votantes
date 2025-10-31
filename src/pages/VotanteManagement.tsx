@@ -393,15 +393,13 @@ const VotanteManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         required
                                     >
-                                        <option value="MAGISTERIO">Magisterio</option>
-                                        <option value="DOCENTE">Docente</option>
-                                        <option value="EMPLEADO">Empleado</option>
+                                        <option value="LIDER">Lider</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Municipio</label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                                     <select
@@ -412,7 +410,7 @@ const VotanteManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         required
                                     >
-                                        <option value="">Seleccionar departamento</option>
+                                        <option value="">Seleccionar Municipio</option>
                                         {zonas.map(zona => (
                                             <option key={zona.id} value={zona.id.toString()}>{zona.nombre}</option>
                                         ))}
