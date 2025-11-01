@@ -12,7 +12,6 @@ import {
   Filter,
   X,
   LayoutDashboard,
-  Building2,
   ChevronDown,
   Settings,
 } from "lucide-react";
@@ -44,6 +43,13 @@ interface VotantesViewProps {
 }
 
 const defaultAPIVOT = "https://datainsightscloud.com/Apis";
+
+
+interface MunicipioData {
+  ID_MUNICIPIO: string | number;
+  NOMBRE_MUNICIPIO: string;
+}
+
 
 // CAMBIO 1: Eliminamos 'mesa' del estado inicial
 const initialForm = {
@@ -111,8 +117,15 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     const loadCombos = async () => {
       try {
         if (!zonas) {
-          const rz = await fetch(`${APIVOT}/zonas_list.php`).then((r) => r.json());
-          if (rz?.success && Array.isArray(rz.data)) setZonasState(rz.data);
+          const rz = await fetch(`${APIVOT}/mncpio_list.php`).then((r) => r.json());
+          if (rz?.success && Array.isArray(rz.data)) {
+            // MODIFICACIÓN: Mapear los datos para que tengan la estructura esperada
+            const zonasFormateadas = Array.isArray(rz.data) ? rz.data.map((item: MunicipioData) => ({
+              id: Number(item.ID_MUNICIPIO || 0),
+              nombre: String(item.NOMBRE_MUNICIPIO || '')
+            })) : [];
+            setZonasState(zonasFormateadas);
+          }
         }
         if (!usuarios) {
           const ru = await fetch(`${APIVOT}/usuarios_list.php`).then((r) => r.json());
@@ -275,6 +288,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         }
         datosAgrupadosPorUsuario[usuario].push(votante);
       }
+      
 
       const worksheetResumen: XLSX.WorkSheet = {};
       let currentRow = 0;
@@ -575,18 +589,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
 
 
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log("Navegando a /Departamentos");
-                          navigate("/Departamentos");
-                          setAdminMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                      >
-                        <Building2 className="w-4 h-4" />
-                        Departamentos
-                      </button>
+                    
                       <button
                         type="button"
                         onClick={() => {
@@ -851,8 +854,8 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="relative">
+              <div className="grid grid-cols-3 gap-3 ">
+                <div className="relative hidden">
                   <select
                     value={fMesa}
                     onChange={(e) => setFMesa(e.target.value)}

@@ -22,7 +22,7 @@ interface Usuario {
     ID_USUARIO: number;
     NOMBRE_USUARIO: string;
     APELLIDO_USUARIO: string;
-    NIVEL_LIDERAZGO: 'DEPARTAMENTO' | 'MUNICIPIO' | 'ZONA' | null; // <-- CAMBIO
+    NIVEL_LIDERAZGO: 'DEPARTAMENTO' | 'MUNICIPIO' | 'ZONA' | null;
 }
 
 interface FormState {
@@ -41,7 +41,7 @@ const MunicipalityManagement: React.FC = () => {
 
     const [municipios, setMunicipios] = useState<Municipio[]>([]);
     const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-    const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+    const [usuarios, setUsuarios] = useState<Usuario[]>([]); // Usuarios disponibles para ser líderes
 
     const [loading, setLoading] = useState(false);
     const [loadingMunicipios, setLoadingMunicipios] = useState(true);
@@ -51,37 +51,34 @@ const MunicipalityManagement: React.FC = () => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
 
-
-          const handleRedirectToUsuarios = () => {
+    const handleRedirectToUsuarios = () => {
         window.location.href = "/dashboard";
     };
 
+    // --- Efectos para cargar datos iniciales ---
 
-
-
-
+    // Cargar Departamentos
     useEffect(() => {
-        const fetchUsuarios = async () => {
+        const fetchDepartamentos = async () => {
             try {
-                // <-- CAMBIO: Usar el nuevo endpoint
-                const response = await fetch("https://datainsightscloud.com/Apis/usuarios_disponibles.php");
+                const response = await fetch("https://datainsightscloud.com/Apis/dpto_options.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
-                    setUsuarios(data.data);
+                    setDepartamentos(data.data);
                 } else {
-                    toast.error("Error al cargar la lista de usuarios para líderes");
+                    toast.error("Error al cargar los departamentos");
                 }
             } catch (error) {
-                toast.error("Error de conexión al cargar usuarios");
-                console.error("Error fetching usuarios:", error);
+                toast.error("Error de conexión al cargar departamentos");
+                console.error("Error fetching departamentos:", error);
             } finally {
-                setLoadingUsuarios(false);
+                setLoadingDepartamentos(false);
             }
         };
-        fetchUsuarios();
+        fetchDepartamentos();
     }, []);
 
-
+    // Cargar Municipios
     useEffect(() => {
         const fetchMunicipios = async () => {
             try {
@@ -102,36 +99,13 @@ const MunicipalityManagement: React.FC = () => {
         fetchMunicipios();
     }, []);
 
-
-
-    useEffect(() => {
-        const fetchDepartamentos = async () => {
-            try {
-                // <-- CAMBIO: Usar el nuevo endpoint para opciones
-                const response = await fetch("https://datainsightscloud.com/Apis/dpto_options.php");
-                const data = await response.json();
-                if (data?.success && Array.isArray(data.data)) {
-                    setDepartamentos(data.data);
-                } else {
-                    toast.error("Error al cargar los departamentos");
-                }
-            } catch (error) {
-                toast.error("Error de conexión al cargar departamentos");
-                console.error("Error fetching departamentos:", error);
-            } finally {
-                setLoadingDepartamentos(false);
-            }
-        };
-        fetchDepartamentos();
-    }, []);
-
-
-
-
+    // Cargar Usuarios Disponibles para Líderes
+    // CORRECCIÓN: Se elimina el useEffect duplicado. Solo se llama al endpoint correcto.
     useEffect(() => {
         const fetchUsuarios = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
+                // Este endpoint debería devolver la lista de usuarios que pueden ser líderes de municipio.
+                const response = await fetch("https://datainsightscloud.com/Apis/usuarios_disponibles.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
@@ -146,7 +120,7 @@ const MunicipalityManagement: React.FC = () => {
             }
         };
         fetchUsuarios();
-    }, []);
+    }, []); // Se ejecuta solo una vez al montar el componente
 
     // --- Manejadores de Eventos ---
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -162,8 +136,6 @@ const MunicipalityManagement: React.FC = () => {
         });
         setEditingId(municipio.ID_MUNICIPIO);
     };
-
-
 
     const resetForm = () => {
         setForm({ nombre_municipio: "", dpto_asignado: "", lider_municipio: "" });
@@ -190,6 +162,7 @@ const MunicipalityManagement: React.FC = () => {
                 toast.success(editingId ? "Municipio actualizado" : "Municipio guardado");
                 setSaved(true); setTimeout(() => setSaved(false), 3000);
                 resetForm();
+                // Refrescar la lista de municipios
                 const responseMunicipios = await fetch("https://datainsightscloud.com/Apis/mncpio_list.php");
                 const dataMunicipios = await responseMunicipios.json();
                 if (dataMunicipios?.success && Array.isArray(dataMunicipios.data)) {
@@ -210,7 +183,8 @@ const MunicipalityManagement: React.FC = () => {
         const nombre = municipio.NOMBRE_MUNICIPIO.toLowerCase();
         const dpto = municipio.NOMBRE_DPTO.toLowerCase();
         const lider = municipio.NOMBRE_LIDER.toLowerCase();
-        return nombre.includes(searchTerm.toLowerCase()) || dpto.includes(searchTerm.toLowerCase()) || lider.includes(searchTerm.toLowerCase());
+        const term = searchTerm.toLowerCase();
+        return nombre.includes(term) || dpto.includes(term) || lider.includes(term);
     });
 
     // --- Renderizado JSX ---
@@ -219,14 +193,13 @@ const MunicipalityManagement: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Gestión de Municipios</h1>
-
                     <button
-                                            onClick={handleRedirectToUsuarios}
-                                            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                                        >
-                                            <ArrowLeft className="w-5 h-5 mr-2" />
-                                            Regresar
-                                        </button>
+                        onClick={handleRedirectToUsuarios}
+                        className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                        <ArrowLeft className="w-5 h-5 mr-2" />
+                        Regresar
+                    </button>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Formulario */}
@@ -276,18 +249,12 @@ const MunicipalityManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                     >
                                         <option value="">{loadingUsuarios ? "Cargando líderes..." : "Seleccionar un líder"}</option>
-                                        {usuarios
-                                            .filter(usuario =>
-                                                // Permitir usuarios que NO son líderes de departamento ni de zona
-                                                (usuario.NIVEL_LIDERAZGO !== 'DEPARTAMENTO' && usuario.NIVEL_LIDERAZGO !== 'ZONA') ||
-                                                // Si estamos editando, mantener al líder actual en la lista
-                                                (editingId !== null && parseInt(form.lider_municipio) === usuario.ID_USUARIO)
-                                            )
-                                            .map(usuario => (
-                                                <option key={usuario.ID_USUARIO} value={usuario.ID_USUARIO.toString()}>
-                                                    {usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}
-                                                </option>
-                                            ))}
+                                        {/* CORRECCIÓN: Se simplifica el mapeo. Se asume que la API ya filtra los usuarios correctos. */}
+                                        {usuarios.map(usuario => (
+                                            <option key={usuario.ID_USUARIO} value={usuario.ID_USUARIO.toString()}>
+                                                {usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}
+                                            </option>
+                                        ))}
                                     </select>
                                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
