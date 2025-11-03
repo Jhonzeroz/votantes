@@ -1,80 +1,61 @@
-import React, { useEffect, useState } from "react";
-import { BarChart3, Layers, UserPlus, MapPin, Users, Building2 } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { BarChart3,UserPlus,  Users,  TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 const APIVOT = "https://datainsightscloud.com/Apis";
 
-type Opt = { id: number; nombre: string };
 
 type Resumen = {
   total_votantes: number;
   mesas_distintas: number;
-
   municipios_distintos: number;
   usuarios_distintos: number;
   puestos_distintos?: number;
   lugares_distintos?: number;
 };
-
 type PorZona = { ID_ZONA: number | null; ZONA: string | null; TOTAL: number };
-type PorMpio = { ID_MUNICIPIO: number | null; MUNICIPIO: string | null; TOTAL: number };
 type PorUsuario = { ID_USUARIO: number | null; USUARIO: string | null; TOTAL: number };
-type PorDpto = { ID_DEPTO: number | null; DPTO: string | null; TOTAL: number };
-type MesasPorDpto = { ID_DEPTO: number | null; DPTO: string | null; MESAS_DISTINTAS: number };
-type PorMesaDep = { ID_DEPTO: number | null; DPTO: string | null; MESA: number; TOTAL: number };
+type VotantesPorMunicipioHomologado = {
+  MUNICIPIO: string;
+  DEPARTAMENTO: string;
+  TOTAL: number;
+};
 
 const DashboardVotantesResumen: React.FC = () => {
-  // Combos
-  const [municipios, setMunicipios] = useState<Opt[]>([]);
-  const [zonas, setZonas] = useState<Opt[]>([]);
-  const [usuarios, setUsuarios] = useState<Opt[]>([]);
 
-  // Filtros
-  const [fMunicipio, setFMunicipio] = useState("");
-  const [fZona, setFZona] = useState("");
-  const [fUsuario, setFUsuario] = useState("");
-  const [fMesa, setFMesa] = useState("");
-  const [fPuesto, setFPuesto] = useState("");
-  const [fLugar, setFLugar] = useState("");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
-
-  // Data
-  const [loading, setLoading] = useState(false);
+  const [loadingMainData, setLoadingMainData] = useState(true); // Estado de carga para los datos principales
   const [resumen, setResumen] = useState<Resumen | null>(null);
-
   const [porZona, setPorZona] = useState<PorZona[]>([]);
-  const [porMpio, setPorMpio] = useState<PorMpio[]>([]);
   const [porUsuario, setPorUsuario] = useState<PorUsuario[]>([]);
-  const [porDepartamento, setPorDepartamento] = useState<PorDpto[]>([]);
-  const [mesasPorDepartamento, setMesasPorDepartamento] = useState<MesasPorDpto[]>([]);
-  const [porMesaDep, setPorMesaDep] = useState<PorMesaDep[]>([]);
+  const [votantesPorMunicipioHomologado, setVotantesPorMunicipioHomologado] = useState<VotantesPorMunicipioHomologado[]>([]);
 
+  // --- LÓGICA DE CÁLCULO ---
+  const votantesPorDepartamentoDesdeAPI = useMemo(() => {
+    const deptoCounts: { [key: string]: number } = {};
+    votantesPorMunicipioHomologado.forEach(item => {
+      const depto = item.DEPARTAMENTO;
+      if (depto) {
+        deptoCounts[depto] = (deptoCounts[depto] || 0) + item.TOTAL;
+      }
+    });
+    const result = Object.entries(deptoCounts).map(([departamento, total]) => ({
+      departamento,
+      total
+    }));
+    return result.sort((a, b) => b.total - a.total);
+  }, [votantesPorMunicipioHomologado]);
 
-
-
-  useEffect(() => {
-  console.log("zonas:", zonas);
-  console.log("porZona:", porZona);
-}, [zonas, porZona]);
-
-
-
-
-
-  // Combos básicos
+  // --- EFECTOS Y CARGA DE DATOS ---
   useEffect(() => {
     (async () => {
       try {
-        const [rM, rZ, rU] = await Promise.all([
+        const [] = await Promise.all([
           fetch(`${APIVOT}/municipios_list.php`).then((r) => r.json()),
           fetch(`${APIVOT}/zonas_list.php`).then((r) => r.json()),
           fetch(`${APIVOT}/usuarios_list.php`).then((r) => r.json()),
         ]);
-        if (rM?.success) setMunicipios(rM.data || []);
-        if (rZ?.success) setZonas(rZ.data || []);
-        if (rU?.success) setUsuarios(rU.data || []);
+    
       } catch {
         // silencioso
       }
@@ -82,48 +63,50 @@ const DashboardVotantesResumen: React.FC = () => {
   }, []);
 
   const loadDashboard = async () => {
-    setLoading(true);
+    setLoadingMainData(true);
     try {
       const params = new URLSearchParams();
-      if (fMunicipio) params.set("municipio", fMunicipio);
-      if (fZona) params.set("zona", fZona);
-      if (fUsuario) params.set("usuario", fUsuario);
-      if (fMesa) params.set("mesa", fMesa);
-      if (fPuesto) params.set("puesto", fPuesto);
-      if (fLugar) params.set("lugar_votacion", fLugar);
-      if (desde) params.set("desde", desde);
-      if (hasta) params.set("hasta", hasta);
-
-      // cache-busting opcional (el PHP ya envía no-cache)
       params.set("_t", String(Date.now()));
 
-      const res = await fetch(`${APIVOT}/dashboard_counts.php?${params.toString()}`).then((r) => r.json());
+      const [res, resHomologado] = await Promise.all([
+        fetch(`${APIVOT}/dashboard_counts.php?${params.toString()}`).then((r) => r.json()),
+        fetch(`${APIVOT}/votantes_por_municipio.php?${params.toString()}`).then((r) => r.json()),
+      ]);
 
       if (res?.success) {
         setResumen(res.data.resumen || null);
-
         setPorZona(res.data.por_zona || []);
-        setPorMpio(res.data.por_municipio || []);
         setPorUsuario(res.data.por_usuario || []);
-
-        setPorDepartamento(res.data.por_departamento || []);
-        setMesasPorDepartamento(res.data.mesas_por_departamento || []);
-        setPorMesaDep(res.data.por_mesa_por_departamento || []);
       } else {
-        toast.error(res?.error || "No se pudo cargar el dashboard");
+        toast.error(res?.error || "No se pudo cargar el dashboard principal");
       }
-    } catch {
-      toast.error("Error de red");
+
+      if (resHomologado?.success) {
+        setVotantesPorMunicipioHomologado(resHomologado.data || []);
+      } else {
+        toast.error(resHomologado?.message || "No se pudo cargar los datos homologados por municipio");
+      }
+    } catch (error) {
+      console.error("Error en loadDashboard:", error);
+      toast.error("Error de red o al procesar la respuesta");
     } finally {
-      setLoading(false);
+      setLoadingMainData(false);
     }
   };
 
   useEffect(() => {
     loadDashboard();
-  }, []); // carga inicial
+  }, []);
 
-  const mesas100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
+
+  const getGradientColor = (index: number) => {
+    const gradients = [
+      "from-blue-400 to-indigo-500", "from-emerald-400 to-teal-500", "from-purple-400 to-pink-500",
+      "from-amber-400 to-orange-500", "from-rose-400 to-red-500", "from-cyan-400 to-sky-500",
+      "from-violet-400 to-purple-700", "from-teal-400 to-green-500"
+    ];
+    return gradients[index % gradients.length];
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -131,11 +114,8 @@ const DashboardVotantesResumen: React.FC = () => {
       <div className="px-6 pt-8 pb-4 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Dashboard de Votantes</h2>
-          <p className="text-sm text-slate-500">
-            Conteos por departamento, municipio, zona, mesa y usuario
-          </p>
+         
         </div>
-
         <Link
           to="/dashboard"
           className="group relative flex items-center gap-2 px-4 h-10 rounded-xl
@@ -154,298 +134,76 @@ const DashboardVotantesResumen: React.FC = () => {
         </Link>
       </div>
 
-      {/* Filtros */}
-      <div className="px-6">
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50 via-indigo-50 to-violet-50 p-4 shadow-sm">
-          <div className="grid grid-cols-1 lg:grid-cols-8 gap-3">
-            <select
-              value={fMunicipio}
-              onChange={(e) => setFMunicipio(e.target.value)}
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-sky-200 focus:border-sky-300 hover:border-sky-300"
-              aria-label="Municipio"
-            >
-              <option value="">Todos los municipios</option>
-              {municipios.map((m) => (
-                <option key={m.id} value={String(m.id)}>
-                  {m.nombre}
-                </option>
-              ))}
-            </select>
-
-         
-            <select
-              value={fUsuario}
-              onChange={(e) => setFUsuario(e.target.value)}
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-300 hover:border-emerald-300"
-              aria-label="Usuario"
-            >
-              <option value="">Todos los usuarios</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={String(u.id)}>
-                  {u.nombre}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={fMesa}
-              onChange={(e) => setFMesa(e.target.value)}
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-amber-200 focus:border-amber-300 hover:border-amber-300"
-              aria-label="Mesa"
-            >
-              <option value="">Todas las mesas</option>
-              {mesas100.map((n) => (
-                <option key={n} value={n}>
-                  Mesa {n}
-                </option>
-              ))}
-            </select>
-
-            <input
-              value={fPuesto}
-              onChange={(e) => setFPuesto(e.target.value)}
-              placeholder="Puesto (ej: I.E. Central)"
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-300 hover:border-blue-300"
-              aria-label="Puesto"
-            />
-            <input
-              value={fLugar}
-              onChange={(e) => setFLugar(e.target.value)}
-              placeholder="Lugar de votación (ej: Montería)"
-              className="h-10 rounded-2xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-rose-200 focus:border-rose-300 hover:border-rose-300"
-              aria-label="Lugar de votación"
-            />
-
-            <input
-              type="date"
-              value={desde}
-              onChange={(e) => setDesde(e.target.value)}
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-indigo-200 focus:border-indigo-300 hover:border-indigo-300"
-              aria-label="Desde"
-            />
-            <input
-              type="date"
-              value={hasta}
-              onChange={(e) => setHasta(e.target.value)}
-              className="h-10 rounded-xl bg-white/90 border border-slate-200 px-3 text-sm shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-rose-200 focus:border-rose-300 hover:border-rose-300"
-              aria-label="Hasta"
-            />
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={loadDashboard}
-              className="px-4 h-10 rounded-xl text-white text-sm font-medium shadow-md
-                   bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500
-                   focus:outline-none focus:ring-4 focus:ring-indigo-200"
-            >
-              {loading ? "Cargando..." : "Aplicar filtros"}
-            </button>
-
-            <button
-              onClick={() => {
-                setFMunicipio("");
-                setFZona("");
-                setFUsuario("");
-                setFMesa("");
-                setFPuesto("");
-                setFLugar("");
-                setDesde("");
-                setHasta("");
-                setTimeout(loadDashboard, 0);
-              }}
-              className="px-4 h-10 rounded-xl text-sm font-medium
-                   bg-white/90 border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm
-                   focus:outline-none focus:ring-4 focus:ring-slate-200"
-            >
-              Limpiar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* KPIs */}
-      <div className="px-6 mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-emerald-400 to-green-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <BarChart3 className="w-4 h-4" /> Total votantes
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.total_votantes ?? 0}</div>
-          </div>
-
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-blue-400 to-indigo-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <Layers className="w-4 h-4" /> Mesas
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.mesas_distintas ?? 0}</div>
-          </div>
-
-       
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-pink-400 to-rose-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <MapPin className="w-4 h-4" /> Municipios
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.municipios_distintos ?? 0}</div>
-          </div>
-
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-amber-400 to-orange-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <Users className="w-4 h-4" /> Usuarios
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.usuarios_distintos ?? 0}</div>
-          </div>
-
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-cyan-400 to-sky-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <Building2 className="w-4 h-4" /> Puestos
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.puestos_distintos ?? 0}</div>
-          </div>
-
-          <div className="p-4 rounded-2xl text-white shadow-md bg-gradient-to-br from-teal-400 to-emerald-500">
-            <div className="flex items-center gap-2 text-sm opacity-90">
-              <MapPin className="w-4 h-4" /> Lugares
-            </div>
-            <div className="text-3xl font-bold mt-1">{resumen?.lugares_distintos ?? 0}</div>
-          </div>
+      {/* SECCIÓN PRINCIPAL: Votantes por Departamento */}
+      <div className="px-6 mt-8">
+ 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {loadingMainData ? (
+            // Esqueletos de carga
+            [...Array(8)].map((_, i) => (
+              <div key={i} className="h-32 rounded-2xl bg-slate-200 animate-pulse"></div>
+            ))
+          ) : (
+            votantesPorDepartamentoDesdeAPI.length > 0 ? (
+              votantesPorDepartamentoDesdeAPI.map((depto, index) => (
+                <div key={depto.departamento} className={`p-4 rounded-2xl text-white shadow-md bg-gradient-to-br ${getGradientColor(index)}`}>
+                  <div className="flex items-center gap-2 text-sm opacity-90">
+                    <TrendingUp className="w-4 h-4" /> {depto.departamento}
+                  </div>
+                  <div className="text-3xl font-bold mt-1">{depto.total.toLocaleString()}</div>
+                  <div className="text-xs opacity-75 mt-1">
+                    {((depto.total / (resumen?.total_votantes || 1)) * 100).toFixed(1)}% del total
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full p-8 text-center text-slate-500 bg-slate-100 rounded-xl">
+              </div>
+            )
+          )}
         </div>
       </div>
 
       {/* Grids de tablas */}
       <div className="px-6 mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 pb-10">
-        {/* Votantes por departamento */}
+        {/* Votantes por municipio con departamento */}
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 bg-slate-50">
-            <h4 className="font-semibold text-slate-700">Votantes por departamento</h4>
+          <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <h4 className="font-semibold text-emerald-700">Votantes por Municipio</h4>
           </div>
           <div className="max-h-[420px] overflow-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-slate-600">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium">Departamento</th>
-                  <th className="text-left px-3 py-2 font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {porDepartamento.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  porDepartamento.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2">{r.DPTO ?? "—"}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{r.TOTAL}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Mesas distintas por departamento */}
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 bg-stone-50">
-            <h4 className="font-semibold text-slate-700">Mesas distintas por departamento</h4>
-          </div>
-          <div className="max-h-[420px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-stone-50 text-slate-600">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium">Departamento</th>
-                  <th className="text-left px-3 py-2 font-medium">Mesas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mesasPorDepartamento.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  mesasPorDepartamento.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 hover:bg-stone-50">
-                      <td className="px-3 py-2">{r.DPTO ?? "—"}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{r.MESAS_DISTINTAS}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Votantes por municipio */}
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 bg-stone-50">
-            <h4 className="font-semibold text-slate-700">Votantes por municipio</h4>
-          </div>
-          <div className="max-h-[420px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-stone-50 text-slate-600">
+              <thead className="sticky top-0 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Municipio</th>
-                  <th className="text-left px-3 py-2 font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {porMpio.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  porMpio.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 hover:bg-stone-50">
-                      <td className="px-3 py-2">{r.MUNICIPIO ?? "—"}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{r.TOTAL}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Segunda fila de tablas */}
-      <div className="px-6 grid grid-cols-1 xl:grid-cols-3 gap-6 pb-12">
-      
-
-        {/* Votantes por mesa (por departamento) */}
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 bg-slate-50">
-            <h4 className="font-semibold text-slate-700">Votantes por mesa (por departamento)</h4>
-          </div>
-          <div className="max-h-[420px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-slate-600">
-                <tr>
                   <th className="text-left px-3 py-2 font-medium">Departamento</th>
-                  <th className="text-left px-3 py-2 font-medium">Mesa</th>
                   <th className="text-left px-3 py-2 font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {porMesaDep.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  porMesaDep.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2">{r.DPTO ?? "—"}</td>
-                      <td className="px-3 py-2">Mesa {r.MESA}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{r.TOTAL}</td>
+                {loadingMainData ? (
+                  // Esqueletos de carga para la tabla
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={3} className="px-3 py-4">
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                      </td>
                     </tr>
                   ))
+                ) : (
+                  votantesPorMunicipioHomologado.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
+                    </tr>
+                  ) : (
+                    votantesPorMunicipioHomologado.map((r, i) => (
+                      <tr key={i} className="border-t border-slate-100 hover:bg-emerald-50/60">
+                        <td className="px-3 py-2 font-medium">{r.MUNICIPIO}</td>
+                        <td className="px-3 py-2 text-xs text-slate-600">{r.DEPARTAMENTO}</td>
+                        <td className="px-3 py-2 font-semibold text-slate-800">{r.TOTAL}</td>
+                      </tr>
+                    ))
+                  )
                 )}
               </tbody>
             </table>
@@ -466,17 +224,70 @@ const DashboardVotantesResumen: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {porUsuario.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  porUsuario.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 hover:bg-violet-50/60">
-                      <td className="px-3 py-2">{r.USUARIO ?? "—"}</td>
-                      <td className="px-3 py-2 font-semibold text-violet-700">{r.TOTAL}</td>
+                {loadingMainData ? (
+                  // Esqueletos de carga para la tabla
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={2} className="px-3 py-4">
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                      </td>
                     </tr>
                   ))
+                ) : (
+                  porUsuario.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
+                    </tr>
+                  ) : (
+                    porUsuario.map((r, i) => (
+                      <tr key={i} className="border-t border-slate-100 hover:bg-violet-50/60">
+                        <td className="px-3 py-2">{r.USUARIO ?? "—"}</td>
+                        <td className="px-3 py-2 font-semibold text-violet-700">{r.TOTAL}</td>
+                      </tr>
+                    ))
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Votantes por zona - Nueva tabla añadida */}
+        <div className="rounded-2xl bg-white border border-blue-200 shadow-md overflow-hidden">
+          <div className="p-5 border-b border-blue-100 bg-blue-50">
+            <h4 className="font-semibold text-blue-700">Votantes por zona</h4>
+          </div>
+          <div className="max-h-[420px] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-blue-50 text-blue-700">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Zona</th>
+                  <th className="text-left px-3 py-2 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingMainData ? (
+                  // Esqueletos de carga para la tabla
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={2} className="px-3 py-4">
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  porZona.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-3 py-6 text-center text-slate-400">Sin datos</td>
+                    </tr>
+                  ) : (
+                    porZona.map((r, i) => (
+                      <tr key={i} className="border-t border-slate-100 hover:bg-blue-50/60">
+                        <td className="px-3 py-2">{r.ZONA ?? "—"}</td>
+                        <td className="px-3 py-2 font-semibold text-blue-700">{r.TOTAL}</td>
+                      </tr>
+                    ))
+                  )
                 )}
               </tbody>
             </table>
@@ -484,6 +295,20 @@ const DashboardVotantesResumen: React.FC = () => {
         </div>
       </div>
 
+       <div className="lg:col-span-4 flex gap-3">
+              <div className="flex-1 p-3 rounded-xl text-white shadow-md bg-gradient-to-br from-emerald-400 to-green-500">
+                <div className="flex items-center gap-2 text-xs opacity-90">
+                  <BarChart3 className="w-3 h-3" /> Total votantes
+                </div>
+                <div className="text-2xl font-bold mt-1">{resumen?.total_votantes ?? 0}</div>
+              </div>
+              <div className="flex-1 p-3 rounded-xl text-white shadow-md bg-gradient-to-br from-amber-400 to-orange-500">
+                <div className="flex items-center gap-2 text-xs opacity-90">
+                  <Users className="w-3 h-3" /> Usuarios
+                </div>
+                <div className="text-2xl font-bold mt-1">{resumen?.usuarios_distintos ?? 0}</div>
+              </div>
+            </div>
     </div>
   );
 };
