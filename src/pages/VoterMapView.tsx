@@ -1157,7 +1157,7 @@ const VoterMapByDepartment: React.FC = () => {
 
         // ✅ Usa el API de MUNICIPIOS
         const response = await fetch(
-          "https://datainsightscloud.com/Apis/votantes_por_municipio.php?_t=" + Date.now()
+          "https://devsoul.co/api_votantes/votantes_por_municipio.php?_t=" + Date.now()
         );
         const result = await response.json();
         if (!result?.success) throw new Error(result.message || "Error al cargar datos del mapa");

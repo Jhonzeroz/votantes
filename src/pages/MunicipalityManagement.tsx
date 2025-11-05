@@ -61,7 +61,7 @@ const MunicipalityManagement: React.FC = () => {
     useEffect(() => {
         const fetchDepartamentos = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/dpto_options.php");
+                const response = await fetch("https://devsoul.co/api_votantes/dpto_options.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setDepartamentos(data.data);
@@ -82,7 +82,7 @@ const MunicipalityManagement: React.FC = () => {
     useEffect(() => {
         const fetchMunicipios = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/mncpio_list.php");
+                const response = await fetch("https://devsoul.co/api_votantes/mncpio_list.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setMunicipios(data.data);
@@ -105,7 +105,7 @@ const MunicipalityManagement: React.FC = () => {
         const fetchUsuarios = async () => {
             try {
                 // Este endpoint debería devolver la lista de usuarios que pueden ser líderes de municipio.
-                const response = await fetch("https://datainsightscloud.com/Apis/usuarios_disponibles.php");
+                const response = await fetch("https://devsoul.co/api_votantes/usuarios_disponibles.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
@@ -150,8 +150,8 @@ const MunicipalityManagement: React.FC = () => {
         setLoading(true);
         try {
             const url = editingId
-                ? `https://datainsightscloud.com/Apis/mncpio_update.php?id=${editingId}`
-                : "https://datainsightscloud.com/Apis/mncpio_create.php";
+                ? `https://devsoul.co/api_votantes/mncpio_update.php?id=${editingId}`
+                : "https://devsoul.co/api_votantes/mncpio_create.php";
             const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -163,7 +163,7 @@ const MunicipalityManagement: React.FC = () => {
                 setSaved(true); setTimeout(() => setSaved(false), 3000);
                 resetForm();
                 // Refrescar la lista de municipios
-                const responseMunicipios = await fetch("https://datainsightscloud.com/Apis/mncpio_list.php");
+                const responseMunicipios = await fetch("https://devsoul.co/api_votantes/mncpio_list.php");
                 const dataMunicipios = await responseMunicipios.json();
                 if (dataMunicipios?.success && Array.isArray(dataMunicipios.data)) {
                     setMunicipios(dataMunicipios.data);

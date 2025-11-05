@@ -42,14 +42,12 @@ interface VotantesViewProps {
   APIVOT?: string; // p.e. "/api/votos"
 }
 
-const defaultAPIVOT = "https://datainsightscloud.com/Apis";
-
+const defaultAPIVOT = "https://devsoul.co/api_votantes";
 
 interface MunicipioData {
   ID_MUNICIPIO: string | number;
   NOMBRE_MUNICIPIO: string;
 }
-
 
 // CAMBIO 1: Eliminamos 'mesa' del estado inicial
 const initialForm = {
@@ -77,6 +75,59 @@ const tiposDoc = [
 // Esta constante ya no se usa en el formulario, pero la mantenemos por si se usa en los filtros.
 const mesas100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
 
+// Función para obtener el token JWT
+const getToken = () => {
+  return localStorage.getItem('token') || getCookie('token');
+};
+
+// Función auxiliar para obtener cookies
+const getCookie = (name: string) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return null;
+};
+
+// Función para decodificar el token JWT y obtener el ID del usuario
+const getCurrentUserId = () => {
+  const token = getToken();
+  if (!token) return null;
+  
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    
+    const payload = JSON.parse(jsonPayload);
+    return payload.sub; // Devuelve el ID del usuario
+  } catch (error) {
+    console.error('Error al decodificar el token JWT:', error);
+    return null;
+  }
+};
+
+// Función para obtener el tipo de usuario
+const getCurrentUserRole = () => {
+  const token = getToken();
+  if (!token) return null;
+  
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    
+    const payload = JSON.parse(jsonPayload);
+    return payload.tipo_usuario; // Devuelve el tipo de usuario
+  } catch (error) {
+    console.error('Error al decodificar el token JWT:', error);
+    return null;
+  }
+};
+
 const VotantesView: React.FC<VotantesViewProps> = ({
   zonas,
   usuarios,
@@ -91,6 +142,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [zonasState, setZonasState] = useState<Opcion[]>(zonas || []);
   const [usuariosState, setUsuariosState] = useState<Opcion[]>(usuarios || []);
+  const [currentUser, setCurrentUser] = useState<{ id: number; role: number } | null>(null);
 
   // Tabla últimos ingresos
   const [ultimos, setUltimos] = useState<Votante[]>([]);
@@ -105,6 +157,15 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [buscando, setBuscando] = useState(false);
   const [resultados, setResultados] = useState<Votante[]>([]);
   const [exportandoExcel, setExportandoExcel] = useState(false);
+
+  // Efecto para obtener el usuario actual al cargar el componente
+  useEffect(() => {
+    const userId = getCurrentUserId();
+    const userRole = getCurrentUserRole();
+    if (userId && userRole !== null) {
+      setCurrentUser({ id: Number(userId), role: Number(userRole) });
+    }
+  }, []);
 
   useEffect(() => {
     if (err) {
@@ -142,9 +203,12 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const fetchUltimos = async () => {
     setLoadingUltimos(true);
     try {
-      const res = await fetch(`${APIVOT}/votantes_list.php?limit=10`).then((r) =>
-        r.json()
-      );
+      // Si hay un usuario actual y no es administrador, filtrar por su ID
+      const url = currentUser && currentUser.role !== 1 
+        ? `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`
+        : `${APIVOT}/votantes_list.php?limit=10`;
+        
+      const res = await fetch(url).then((r) => r.json());
       if (res?.success) setUltimos(res.data || []);
       else setErr(res?.error || "No se pudieron obtener los últimos ingresos");
     } catch {
@@ -156,8 +220,10 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   };
 
   useEffect(() => {
-    fetchUltimos();
-  }, []);
+    if (currentUser) {
+      fetchUltimos();
+    }
+  }, [currentUser]);
 
   // Form helpers
   const handleChange = (
@@ -179,11 +245,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         "Documento, primer nombre y primer apellido son obligatorios"
       );
     }
-
-    // CAMBIO 2: Eliminamos la validación del campo 'mesa'
-    // if (!form.mesa) {
-    //   return toast.warning("Selecciona la mesa (1 a 10)");
-    // }
 
     setSaving(true);
     try {
@@ -213,7 +274,14 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     try {
       const params = new URLSearchParams();
       if (fZona) params.set("zona", fZona);
-      if (fUsuario) params.set("usuario", fUsuario);
+      
+      // Si hay un usuario actual y no es administrador, usar su ID
+      if (currentUser && currentUser.role !== 1) {
+        params.set("usuario", String(currentUser.id));
+      } else if (fUsuario) {
+        params.set("usuario", fUsuario);
+      }
+      
       if (fMesa) params.set("mesa", fMesa);
       if (q) params.set("q", q);
 
@@ -393,7 +461,14 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       const params = new URLSearchParams();
       if (query) params.set("q", query);
       if (zonaId) params.set("zona", zonaId);
-      if (usuarioId) params.set("usuario", usuarioId);
+      
+      // Si hay un usuario actual y no es administrador, usar su ID
+      if (currentUser && currentUser.role !== 1) {
+        params.set("usuario", String(currentUser.id));
+      } else if (usuarioId) {
+        params.set("usuario", usuarioId);
+      }
+      
       if (mesaId) params.set("mesa", mesaId);
 
       const res = await fetch(
@@ -409,10 +484,12 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
   };
 
-  const debouncedSearch = useMemo(() => debounced(doSearch, 500), []);
+  const debouncedSearch = useMemo(() => debounced(doSearch, 500), [currentUser]);
   useEffect(() => {
-    debouncedSearch(q, fZona, fUsuario, fMesa);
-  }, [q, fZona, fUsuario, fMesa, debouncedSearch]);
+    if (currentUser) {
+      debouncedSearch(q, fZona, fUsuario, fMesa);
+    }
+  }, [q, fZona, fUsuario, fMesa, debouncedSearch, currentUser]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -574,7 +651,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         Usuarios
                       </button>
 
-
                        <button
                         type="button"
                         onClick={() => {
@@ -587,9 +663,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         Promover Usuario
                       </button>
 
-
-
-                    
                       <button
                         type="button"
                         onClick={() => {
@@ -601,18 +674,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                       >
                         <MapPin className="w-4 h-4" />
                         Municipios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log("Navegando a /Zonas");
-                          navigate("/Zonas");
-                          setAdminMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                      >
-                        <MapPin className="w-4 h-4" />
-                        Zonas
                       </button>
                     </div>
                   </div>
@@ -661,8 +722,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                            focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
               />
             </div>
-
-            {/* CAMBIO 3: Eliminamos completamente el campo 'mesa' oculto del formulario */}
             
             {/* Nombres */}
             <div>
@@ -826,7 +885,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
           </form>
         </section>
 
-        {/* Columna derecha: Filtros + Últimos ingresos (sin cambios) */}
+        {/* Columna derecha: Filtros + Últimos ingresos */}
         <aside className="space-y-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
@@ -892,23 +951,26 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                   <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
                 </div>
 
-                <div className="relative  col-span-2">
-                  <select
-                    value={fUsuario}
-                    onChange={(e) => setFUsuario(e.target.value)}
-                    className="w-full appearance-none p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 
-                 border border-slate-300 shadow-inner text-slate-700
-                 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
-                  >
-                    <option value="">Usuario: Todos</option>
-                    {usuariosState.map((u) => (
-                      <option key={u.id} value={String(u.id)}>
-                        {u.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
-                </div>
+                {/* Solo mostrar el filtro de usuario si es administrador */}
+                {currentUser && currentUser.role === 1 && (
+                  <div className="relative col-span-2">
+                    <select
+                      value={fUsuario}
+                      onChange={(e) => setFUsuario(e.target.value)}
+                      className="w-full appearance-none p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 
+                     border border-slate-300 shadow-inner text-slate-700
+                     focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
+                    >
+                      <option value="">Usuario: Todos</option>
+                      {usuariosState.map((u) => (
+                        <option key={u.id} value={String(u.id)}>
+                          {u.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-2">

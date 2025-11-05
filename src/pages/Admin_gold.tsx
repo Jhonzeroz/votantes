@@ -76,7 +76,7 @@ const AdminGold: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('https://datainsightscloud.com/Apis/login_admin.php', {
+      const res = await fetch('https://devsoul.co/api_votantes/login_admin.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

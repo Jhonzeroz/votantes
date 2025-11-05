@@ -89,7 +89,7 @@ const OrganizationalDashboard: React.FC = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/dashboard_stats.php");
+                const response = await fetch("https://devsoul.co/api_votantes/dashboard_stats.php");
                 const result = await response.json();
                 if (result?.success) {
                     setData(result.data);

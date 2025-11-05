@@ -65,7 +65,7 @@ const VotanteManagement: React.FC = () => {
     useEffect(() => {
         const fetchZonas = async () => {
             try {
-                const response = await fetch(`https://datainsightscloud.com/Apis/zonas_list.php?t=${Date.now()}`);
+                const response = await fetch(`https://devsoul.co/api_votantes/zonas_list.php?t=${Date.now()}`);
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setZonas(data.data);
@@ -82,7 +82,7 @@ const VotanteManagement: React.FC = () => {
 
         const fetchVotantes = async () => {
             try {
-                const response = await fetch(`https://datainsightscloud.com/Apis/votantes_list.php?t=${Date.now()}`);
+                const response = await fetch(`https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`);
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setVotantes(data.data);
@@ -170,7 +170,7 @@ const VotanteManagement: React.FC = () => {
         setLoadingSave(true);
 
         try {
-            const response = await fetch("https://datainsightscloud.com/Apis/usuario_create.php", {
+            const response = await fetch("https://devsoul.co/api_votantes/usuario_create.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(form),
@@ -399,7 +399,7 @@ const VotanteManagement: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Municipio</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                                     <select
@@ -410,7 +410,7 @@ const VotanteManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         required
                                     >
-                                        <option value="">Seleccionar Municipio</option>
+                                        <option value="">Seleccionar Departamento</option>
                                         {zonas.map(zona => (
                                             <option key={zona.id} value={zona.id.toString()}>{zona.nombre}</option>
                                         ))}

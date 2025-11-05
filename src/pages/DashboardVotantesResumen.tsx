@@ -3,7 +3,7 @@ import { BarChart3,UserPlus,  Users,  TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
-const APIVOT = "https://datainsightscloud.com/Apis";
+const APIVOT = "https://devsoul.co/api_votantes";
 
 
 type Resumen = {

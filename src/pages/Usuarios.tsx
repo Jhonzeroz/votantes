@@ -71,7 +71,7 @@ const UserManagement: React.FC = () => {
     useEffect(() => {
         const fetchZonas = async () => {
             try {
-                const response = await fetch(`https://datainsightscloud.com/Apis/zonas_list.php?t=${Date.now()}`);
+                const response = await fetch(`https://devsoul.co/api_votantes/zonas_list.php`);
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setZonas(data.data);
@@ -95,7 +95,7 @@ const UserManagement: React.FC = () => {
             setLoadingMunicipios(true);
             const fetchMunicipios = async () => {
                 try {
-                    const response = await fetch(`https://datainsightscloud.com/Apis/municipios_list.php?id_zona=${form.zona_asignada}&t=${Date.now()}`);
+                    const response = await fetch(`https://devsoul.co/api_votantes/municipios_list.php?id_zona=${form.zona_asignada}&t=${Date.now()}`);
                     const data = await response.json();
                     if (data?.success && Array.isArray(data.data)) {
                         setMunicipios(data.data);
@@ -121,7 +121,7 @@ const UserManagement: React.FC = () => {
     useEffect(() => {
         const fetchUsuarios = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
+                const response = await fetch("https://devsoul.co/api_votantes/usuario_sistema.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
@@ -200,8 +200,8 @@ const UserManagement: React.FC = () => {
         try {
             // Guardamos el usuario con la API existente
             const url = editingId
-                ? `https://datainsightscloud.com/Apis/usuario_update.php?id=${editingId}`
-                : "https://datainsightscloud.com/Apis/usuario_create.php";
+                ? `https://devsoul.co/api_votantes/usuario_update.php?id=${editingId}`
+                : "https://devsoul.co/api_votantes/usuario_create.php";
 
             const response = await fetch(url, {
                 method: "POST",
@@ -226,7 +226,7 @@ const UserManagement: React.FC = () => {
             resetForm();
 
             // Recargar la lista de usuarios
-            const responseUsuarios = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
+            const responseUsuarios = await fetch("https://devsoul.co/api_votantes/usuario_sistema.php");
             const dataUsuarios = await responseUsuarios.json();
             if (dataUsuarios?.success && Array.isArray(dataUsuarios.data)) {
                 setUsuarios(dataUsuarios.data);

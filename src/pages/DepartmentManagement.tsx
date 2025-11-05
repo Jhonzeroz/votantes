@@ -55,7 +55,7 @@ const DepartmentManagement: React.FC = () => {
         const fetchUsuarios = async () => {
             try {
                 // <-- CAMBIO: Usar el nuevo endpoint
-                const response = await fetch("https://datainsightscloud.com/Apis/usuarios_disponibles.php");
+                const response = await fetch("https://devsoul.co/api_votantes/usuarios_disponibles.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
@@ -80,7 +80,7 @@ const DepartmentManagement: React.FC = () => {
         const fetchDepartamentos = async () => {
             try {
                 // Asumimos que este endpoint devuelve la lista con el nombre del líder ya incluido
-                const response = await fetch("https://datainsightscloud.com/Apis/dpto_list.php");
+                const response = await fetch("https://devsoul.co/api_votantes/dpto_list.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setDepartamentos(data.data);
@@ -102,7 +102,7 @@ const DepartmentManagement: React.FC = () => {
     useEffect(() => {
         const fetchUsuarios = async () => {
             try {
-                const response = await fetch("https://datainsightscloud.com/Apis/usuario_sistema.php");
+                const response = await fetch("https://devsoul.co/api_votantes/usuario_sistema.php");
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
@@ -156,8 +156,8 @@ const DepartmentManagement: React.FC = () => {
 
         try {
             const url = editingId
-                ? `https://datainsightscloud.com/Apis/dpto_update.php?id=${editingId}`
-                : "https://datainsightscloud.com/Apis/dpto_create.php";
+                ? `https://devsoul.co/api_votantes/dpto_update.php?id=${editingId}`
+                : "https://devsoul.co/api_votantes/dpto_create.php";
 
             const response = await fetch(url, {
                 method: "POST",
@@ -174,7 +174,7 @@ const DepartmentManagement: React.FC = () => {
                 resetForm();
 
                 // Recargar lista de departamentos
-                const responseDptos = await fetch("https://datainsightscloud.com/Apis/dpto_list.php");
+                const responseDptos = await fetch("https://devsoul.co/api_votantes/dpto_list.php");
                 const dataDptos = await responseDptos.json();
                 if (dataDptos?.success && Array.isArray(dataDptos.data)) {
                     setDepartamentos(dataDptos.data);
