@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ChevronDown,
   Settings,
+  LogOut, // Importamos el icono de LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
@@ -157,6 +158,19 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [buscando, setBuscando] = useState(false);
   const [resultados, setResultados] = useState<Votante[]>([]);
   const [exportandoExcel, setExportandoExcel] = useState(false);
+
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    // Eliminar el token del localStorage
+    localStorage.removeItem('token');
+    
+
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    
+    toast.success("Sesión cerrada correctamente");
+    
+    navigate("/Admin_gold");
+  };
 
   // Efecto para obtener el usuario actual al cargar el componente
   useEffect(() => {
@@ -675,6 +689,22 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         <MapPin className="w-4 h-4" />
                         Municipios
                       </button>
+
+                      {/* Separador visual */}
+                      <div className="border-t border-gray-200 my-1"></div>
+
+                      {/* Botón para cerrar sesión */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleLogout();
+                          setAdminMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar sesión
+                      </button>
                     </div>
                   </div>
                 )}
@@ -985,7 +1015,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         <tr>
                           <th className="text-left px-3 py-2 font-medium">Documento</th>
                           <th className="text-left px-3 py-2 font-medium">Nombre</th>
-                          <th className="text-left px-3 py-2 font-medium">Municipio</th>
                           <th className="text-left px-3 py-2 font-medium">Usuario</th>
                         </tr>
                       </thead>
@@ -994,7 +1023,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                           <tr key={i} className="border-t border-slate-200 hover:bg-slate-50/70">
                             <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.NUM_DOC}</td>
                             <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
-                            <td className="px-3 py-2">{r.ZONA_NOMBRE}</td>
                             <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
                           </tr>
                         ))}
@@ -1025,7 +1053,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                     <tr>
                       <th className="text-left px-3 py-2 font-medium">Documento</th>
                       <th className="text-left px-3 py-2 font-medium">Nombre</th>
-                      <th className="text-left px-3 py-2 font-medium">Municipio</th>
                       <th className="text-left px-3 py-2 font-medium">Usuario</th>
                       <th className="text-left px-3 py-2 font-medium">Fecha</th>
                     </tr>
@@ -1047,7 +1074,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                             {r.NUM_DOC}
                           </td>
                           <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
-                          <td className="px-3 py-2">{r.ZONA_NOMBRE}</td>
                           <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
                           <td className="px-3 py-2 text-xs text-slate-500">
                             {r.CREADO_EN}
