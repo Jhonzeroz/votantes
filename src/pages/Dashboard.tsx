@@ -492,7 +492,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         setResultados(res.data || []);
       }
     } catch {
-      toast.error("Error al buscar votantes");
+      //toast.error("Error al buscar votantes");
     } finally {
       setBuscando(false);
     }
