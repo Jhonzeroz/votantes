@@ -251,7 +251,6 @@ const VotanteManagement: React.FC = () => {
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nombre Completo</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Documento</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Mesa</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Zona</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Registrado por</th>
                                         <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Acciones</th>
                                     </tr>
@@ -268,8 +267,6 @@ const VotanteManagement: React.FC = () => {
                                             <tr key={votante.ID_VOTANTE} className="border-b border-gray-100 hover:bg-gray-50">
                                                 <td className="py-3 px-4 text-sm text-gray-900">{votante.NOMBRE_COMPLETO}</td>
                                                 <td className="py-3 px-4 text-sm text-gray-700">{votante.NUM_DOC}</td>
-                                                <td className="py-3 px-4 text-sm text-gray-700">{votante.MESA || 'N/A'}</td>
-                                                <td className="py-3 px-4 text-sm text-gray-700">{votante.ZONA_NOMBRE}</td>
                                                 <td className="py-3 px-4 text-sm text-gray-700">{votante.USUARIO_NOMBRE}</td>
                                                 <td className="py-3 px-4">
                                                     <div className="flex justify-center">
