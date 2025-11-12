@@ -14,7 +14,7 @@ import {
   LayoutDashboard,
   ChevronDown,
   Settings,
-  LogOut, // Importamos el icono de LogOut
+  LogOut,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
@@ -50,7 +50,6 @@ interface MunicipioData {
   NOMBRE_MUNICIPIO: string;
 }
 
-// CAMBIO 1: Eliminamos 'mesa' del estado inicial
 const initialForm = {
   tipo_doc: "CC",
   num_doc: "",
@@ -73,7 +72,6 @@ const tiposDoc = [
   { value: "PAS", label: "Pasaporte" },
 ];
 
-// Esta constante ya no se usa en el formulario, pero la mantenemos por si se usa en los filtros.
 const mesas100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
 
 // Función para obtener el token JWT
@@ -102,7 +100,7 @@ const getCurrentUserId = () => {
     }).join(''));
     
     const payload = JSON.parse(jsonPayload);
-    return payload.sub; // Devuelve el ID del usuario
+    return payload.sub;
   } catch (error) {
     console.error('Error al decodificar el token JWT:', error);
     return null;
@@ -122,7 +120,7 @@ const getCurrentUserRole = () => {
     }).join(''));
     
     const payload = JSON.parse(jsonPayload);
-    return payload.tipo_usuario; // Devuelve el tipo de usuario
+    return payload.tipo_usuario;
   } catch (error) {
     console.error('Error al decodificar el token JWT:', error);
     return null;
@@ -161,14 +159,9 @@ const VotantesView: React.FC<VotantesViewProps> = ({
 
   // Función para cerrar sesión
   const handleLogout = () => {
-    // Eliminar el token del localStorage
     localStorage.removeItem('token');
-    
-
     document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
     toast.success("Sesión cerrada correctamente");
-    
     navigate("/Admin_gold");
   };
 
@@ -194,7 +187,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         if (!zonas) {
           const rz = await fetch(`${APIVOT}/mncpio_list.php`).then((r) => r.json());
           if (rz?.success && Array.isArray(rz.data)) {
-            // MODIFICACIÓN: Mapear los datos para que tengan la estructura esperada
             const zonasFormateadas = Array.isArray(rz.data) ? rz.data.map((item: MunicipioData) => ({
               id: Number(item.ID_MUNICIPIO || 0),
               nombre: String(item.NOMBRE_MUNICIPIO || '')
@@ -217,7 +209,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const fetchUltimos = async () => {
     setLoadingUltimos(true);
     try {
-      // Si hay un usuario actual y no es administrador, filtrar por su ID
       const url = currentUser && currentUser.role !== 1 
         ? `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`
         : `${APIVOT}/votantes_list.php?limit=10`;
@@ -262,7 +253,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
 
     setSaving(true);
     try {
-      // Enviamos todo el objeto form (que ya no incluye 'mesa')
       const res = await fetch(`${APIVOT}/votante_create.php`, {
         method: "POST",
         body: new URLSearchParams(form as any),
@@ -272,7 +262,9 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         toast.success("Votante guardado ✅");
         resetForm();
         fetchUltimos();
-        if (q || fZona || fUsuario || fMesa) doSearch(q, fZona, fUsuario, fMesa);
+        // FIX: Llamar a doSearch siempre para refrescar la tabla de resultados,
+        // sin importar si hay filtros activos o no.
+        doSearch(q, fZona, fUsuario, fMesa);
       } else {
         toast.error(res?.message || res?.error || "No se pudo guardar");
       }
@@ -289,7 +281,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       const params = new URLSearchParams();
       if (fZona) params.set("zona", fZona);
       
-      // Si hay un usuario actual y no es administrador, usar su ID
       if (currentUser && currentUser.role !== 1) {
         params.set("usuario", String(currentUser.id));
       } else if (fUsuario) {
@@ -308,6 +299,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       }
       return [];
     } catch {
+      // FIX: Añadir manejo de errores y notificación al usuario.
       toast.error("Error al obtener los datos para exportar");
       return [];
     }
@@ -476,7 +468,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       if (query) params.set("q", query);
       if (zonaId) params.set("zona", zonaId);
       
-      // Si hay un usuario actual y no es administrador, usar su ID
       if (currentUser && currentUser.role !== 1) {
         params.set("usuario", String(currentUser.id));
       } else if (usuarioId) {
@@ -490,9 +481,16 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       ).then((r) => r.json());
       if (res?.success) {
         setResultados(res.data || []);
+      } else {
+        // FIX: Manejar el caso en que la API devuelva success: false
+        toast.error(res?.error || "Error al buscar votantes");
+        setResultados([]);
       }
-    } catch {
-      //toast.error("Error al buscar votantes");
+    } catch (error) {
+      // FIX: Añadir manejo de errores de red o del servidor
+      console.error("Error en doSearch:", error);
+      //toast.error("Error de conexión al buscar votantes");
+      setResultados([]);
     } finally {
       setBuscando(false);
     }
@@ -520,6 +518,22 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [adminMenuOpen]);
+
+  // Crear una lista de usuarios filtrada que solo contenga al usuario logueado.
+  const usuariosFiltrados = useMemo(() => {
+    if (!currentUser) return [];
+    return usuariosState.filter(u => u.id === currentUser.id);
+  }, [usuariosState, currentUser]);
+
+  // Efecto para autoseleccionar al usuario logueado en el formulario.
+  useEffect(() => {
+    if (currentUser && usuariosFiltrados.length > 0) {
+      setForm(prevForm => ({
+        ...prevForm,
+        id_usuario_asignado: String(currentUser.id)
+      }));
+    }
+  }, [currentUser, usuariosFiltrados]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FB] text-slate-900 p-6">
@@ -690,10 +704,8 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         Municipios
                       </button>
 
-                      {/* Separador visual */}
                       <div className="border-t border-gray-200 my-1"></div>
 
-                      {/* Botón para cerrar sesión */}
                       <button
                         type="button"
                         onClick={() => {
@@ -874,11 +886,12 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                 value={form.id_usuario_asignado}
                 onChange={handleChange}
                 required
+                disabled
                 className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
-                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               >
                 <option value="">-- Seleccione usuario --</option>
-                {usuariosState.map((u) => (
+                {usuariosFiltrados.map((u) => (
                   <option key={u.id} value={String(u.id)}>
                     {u.nombre.toUpperCase()}
                   </option>
@@ -981,7 +994,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                   <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
                 </div>
 
-                {/* Solo mostrar el filtro de usuario si es administrador */}
                 {currentUser && currentUser.role === 1 && (
                   <div className="relative col-span-2">
                     <select

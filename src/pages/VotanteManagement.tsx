@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Importar useNavigate
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { UserPlus, Search, X, Save, Shield, Mail, Lock, Phone, MapPin, Check, ArrowLeft } from "lucide-react"; // Importar ArrowLeft
+import { UserPlus, Search, X, Save, Shield, Mail, Lock, Phone, MapPin, Check, ArrowLeft } from "lucide-react";
 
 // --- Interfaces de TypeScript ---
 interface Votante {
@@ -30,8 +30,58 @@ interface EditFormState {
     contrasena_usuario: string;
 }
 
+// --- Funciones auxiliares para manejo del token y usuario ---
+const getToken = () => {
+    return localStorage.getItem('token') || getCookie('token');
+};
+
+const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+};
+
+const getCurrentUserId = () => {
+    const token = getToken();
+    if (!token) return null;
+    
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        return payload.sub; // Devuelve el ID del usuario
+    } catch (error) {
+        console.error('Error al decodificar el token JWT:', error);
+        return null;
+    }
+};
+
+const getCurrentUserRole = () => {
+    const token = getToken();
+    if (!token) return null;
+    
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        return payload.tipo_usuario; // Devuelve el tipo de usuario
+    } catch (error) {
+        console.error('Error al decodificar el token JWT:', error);
+        return null;
+    }
+};
+
+
 const VotanteManagement: React.FC = () => {
-    // Hook para la navegación
     const navigate = useNavigate();
 
     // --- Estados para la lista de Votantes ---
@@ -48,18 +98,30 @@ const VotanteManagement: React.FC = () => {
     // --- Estados para los datos auxiliares (Zonas) ---
     const [zonas, setZonas] = useState<Zona[]>([]);
     const [loadingZonas, setLoadingZonas] = useState(true);
+    
+    // --- Estado para el usuario actual ---
+    const [currentUser, setCurrentUser] = useState<{ id: number; role: number } | null>(null);
 
     // --- Estado del Formulario ---
     const [form, setForm] = useState<EditFormState>({
         nombre_usuario: "",
         apellido_usuario: "",
         telefono_usuario: "",
-        rol_usuario: "",
+        rol_usuario: "LIDER", // Rol por defecto
         estado_usuario: "1", // Activo por defecto
         zona_asignada: "",
         correo_usuario: "",
         contrasena_usuario: ""
     });
+
+    // --- Efecto para obtener el usuario actual al cargar el componente ---
+    useEffect(() => {
+        const userId = getCurrentUserId();
+        const userRole = getCurrentUserRole();
+        if (userId && userRole !== null) {
+            setCurrentUser({ id: Number(userId), role: Number(userRole) });
+        }
+    }, []);
 
     // --- Efectos para cargar datos iniciales ---
     useEffect(() => {
@@ -81,8 +143,17 @@ const VotanteManagement: React.FC = () => {
         };
 
         const fetchVotantes = async () => {
+            // Si no hay un usuario, no se puede hacer la búsqueda.
+            if (!currentUser) return;
+
+            setLoadingVotantes(true);
             try {
-                const response = await fetch(`https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`);
+                // Construir la URL con el filtro de usuario si no es administrador
+                const url = currentUser.role !== 1
+                    ? `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`
+                    : `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+
+                const response = await fetch(url);
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.data)) {
                     setVotantes(data.data);
@@ -98,11 +169,12 @@ const VotanteManagement: React.FC = () => {
         };
 
         fetchZonas();
-        fetchVotantes();
-    }, []);
+        if (currentUser) {
+            fetchVotantes();
+        }
+    }, [currentUser]); // Se ejecuta cuando el usuario actual cambia
 
     // --- Manejadores de Eventos ---
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setForm(prev => ({ ...prev, [name]: value }));
@@ -112,24 +184,21 @@ const VotanteManagement: React.FC = () => {
         setEditingVotante(votante);
         setShowEditModal(true);
 
-        // Lógica para separar nombre y apellido
         const nameParts = votante.NOMBRE_COMPLETO.trim().split(' ');
         const nombre = nameParts[0] || '';
         const apellido = nameParts.slice(1).join(' ') || 'N/A';
 
-        // Lógica para encontrar el ID de la zona
         const zona = zonas.find(z => z.nombre === votante.ZONA_NOMBRE);
         const zonaId = zona ? zona.id.toString() : '';
 
-        // Pre-llenar el formulario
         setForm({
             nombre_usuario: nombre,
             apellido_usuario: apellido,
             telefono_usuario: "",
-            rol_usuario: "DOCENTE", // Rol por defecto
+            rol_usuario: "LIDER",
             estado_usuario: "1",
             zona_asignada: zonaId,
-            correo_usuario: "", // El correo debe ser ingresado manualmente
+            correo_usuario: "",
             contrasena_usuario: ""
         });
     };
@@ -138,12 +207,11 @@ const VotanteManagement: React.FC = () => {
         setShowEditModal(false);
         setEditingVotante(null);
         setSaved(false);
-        // Resetear formulario
         setForm({
             nombre_usuario: "",
             apellido_usuario: "",
             telefono_usuario: "",
-            rol_usuario: "",
+            rol_usuario: "LIDER",
             estado_usuario: "1",
             zona_asignada: "",
             correo_usuario: "",
@@ -154,12 +222,10 @@ const VotanteManagement: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        // Validación
         if (!form.nombre_usuario || !form.apellido_usuario || !form.telefono_usuario || !form.zona_asignada || !form.contrasena_usuario) {
             return toast.error("Todos los campos son obligatorios");
         }
         
-        // El correo no es obligatorio según el PHP, pero si se llena, debe ser válido
         if (form.correo_usuario) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(form.correo_usuario)) {
@@ -186,7 +252,7 @@ const VotanteManagement: React.FC = () => {
             setSaved(true);
             setTimeout(() => {
                 handleCloseModal();
-            }, 1500); // Cerrar modal después de mostrar éxito
+            }, 1500);
 
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Error de conexión");
@@ -196,7 +262,6 @@ const VotanteManagement: React.FC = () => {
         }
     };
 
-    // --- Lógica de Filtrado ---
     const filteredVotantes = votantes.filter(votante => {
         const searchLower = searchTerm.toLowerCase();
         return (
@@ -209,11 +274,10 @@ const VotanteManagement: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-6xl mx-auto">
-                {/* Header con título y botón de volver */}
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Gestión de Votantes</h1>
                     <button
-                        onClick={() => navigate('/dashboard')} // Navegación al Dashboard
+                        onClick={() => navigate('/dashboard')}
                         className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5 mr-2" />
@@ -221,7 +285,6 @@ const VotanteManagement: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Barra de búsqueda */}
                 <div className="mb-6 flex justify-end">
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -237,7 +300,6 @@ const VotanteManagement: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Tabla de Votantes */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                     {loadingVotantes ? (
                         <div className="flex justify-center items-center h-64">
@@ -250,7 +312,6 @@ const VotanteManagement: React.FC = () => {
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nombre Completo</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Documento</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Mesa</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Registrado por</th>
                                         <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Acciones</th>
                                     </tr>
@@ -258,8 +319,8 @@ const VotanteManagement: React.FC = () => {
                                 <tbody>
                                     {filteredVotantes.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8 text-gray-500">
-                                                No se encontraron votantes
+                                            <td colSpan={4} className="text-center py-8 text-gray-500">
+                                                No se encontraron votantes asignados a ti.
                                             </td>
                                         </tr>
                                     ) : (
@@ -289,12 +350,10 @@ const VotanteManagement: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal de Edición/Promoción (sin cambios) */}
-             {showEditModal && (
+            {showEditModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
                         <div className="flex items-center justify-between mb-6">
-                            {/* --- LÍNEA MODIFICADA --- */}
                             <h2 className="text-xl font-semibold text-gray-800">
                                 Promover a Usuario: {editingVotante?.NOMBRE_COMPLETO}
                             </h2>
