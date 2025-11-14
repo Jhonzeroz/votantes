@@ -42,7 +42,7 @@ const getCookie = (name: string) => {
     return null;
 };
 
-const getCurrentUserId = () => {
+const getCurrentUser = () => {
     const token = getToken();
     if (!token) return null;
     
@@ -54,32 +54,18 @@ const getCurrentUserId = () => {
         }).join(''));
         
         const payload = JSON.parse(jsonPayload);
-        return payload.sub; // Devuelve el ID del usuario
+        return {
+            id: payload.sub, // ID del usuario
+            role: payload.tipo_usuario, // Tipo de usuario
+            nombre: payload.nombre, // Nombre del usuario
+            zona_asignada: payload.zona_asignada, // Zona asignada del usuario
+            nombre_zona: payload.nombre_zona // Nombre de la zona asignada
+        };
     } catch (error) {
         console.error('Error al decodificar el token JWT:', error);
         return null;
     }
 };
-
-const getCurrentUserRole = () => {
-    const token = getToken();
-    if (!token) return null;
-    
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const payload = JSON.parse(jsonPayload);
-        return payload.tipo_usuario; // Devuelve el tipo de usuario
-    } catch (error) {
-        console.error('Error al decodificar el token JWT:', error);
-        return null;
-    }
-};
-
 
 const VotanteManagement: React.FC = () => {
     const navigate = useNavigate();
@@ -100,7 +86,13 @@ const VotanteManagement: React.FC = () => {
     const [loadingZonas, setLoadingZonas] = useState(true);
     
     // --- Estado para el usuario actual ---
-    const [currentUser, setCurrentUser] = useState<{ id: number; role: number } | null>(null);
+    const [currentUser, setCurrentUser] = useState<{ 
+        id: number; 
+        role: number; 
+        nombre: string;
+        zona_asignada?: number;
+        nombre_zona?: string;
+    } | null>(null);
 
     // --- Estado del Formulario ---
     const [form, setForm] = useState<EditFormState>({
@@ -116,10 +108,15 @@ const VotanteManagement: React.FC = () => {
 
     // --- Efecto para obtener el usuario actual al cargar el componente ---
     useEffect(() => {
-        const userId = getCurrentUserId();
-        const userRole = getCurrentUserRole();
-        if (userId && userRole !== null) {
-            setCurrentUser({ id: Number(userId), role: Number(userRole) });
+        const userData = getCurrentUser();
+        if (userData) {
+            setCurrentUser({
+                id: Number(userData.id),
+                role: Number(userData.role),
+                nombre: userData.nombre,
+                zona_asignada: userData.zona_asignada ? Number(userData.zona_asignada) : undefined,
+                nombre_zona: userData.nombre_zona
+            });
         }
     }, []);
 
@@ -136,7 +133,7 @@ const VotanteManagement: React.FC = () => {
                 }
             } catch (error) {
                 toast.error("Error de conexión al cargar zonas");
-                console.error("Error fetching zonas:", error);
+                console.error("Error fetching zones:", error);
             } finally {
                 setLoadingZonas(false);
             }
@@ -149,14 +146,26 @@ const VotanteManagement: React.FC = () => {
             setLoadingVotantes(true);
             try {
                 // Construir la URL con el filtro de usuario si no es administrador
-                const url = currentUser.role !== 1
-                    ? `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`
-                    : `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
-
+                let url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                
+                // Si no es administrador, filtrar por su ID
+                if (currentUser.role !== 1) {
+                    url += `?usuario=${currentUser.id}`;
+                }
+                
                 const response = await fetch(url);
                 const data = await response.json();
+                
                 if (data?.success && Array.isArray(data.data)) {
-                    setVotantes(data.data);
+                    // Si el usuario no es administrador, filtrar por su zona
+                    if (currentUser.role !== 1 && currentUser.nombre_zona) {
+                        const filteredData = data.data.filter((votante: Votante) => 
+                            votante.ZONA_NOMBRE === currentUser.nombre_zona
+                        );
+                        setVotantes(filteredData);
+                    } else {
+                        setVotantes(data.data);
+                    }
                 } else {
                     toast.error("Error al cargar los votantes");
                 }
@@ -262,7 +271,7 @@ const VotanteManagement: React.FC = () => {
         }
     };
 
-    const filteredVotantes = votantes.filter(votante => {
+    const filteredVotantes = votantes.filter((votante: Votante) => {
         const searchLower = searchTerm.toLowerCase();
         return (
             votante.NOMBRE_COMPLETO.toLowerCase().includes(searchLower) ||
@@ -275,7 +284,14 @@ const VotanteManagement: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">Gestión de Votantes</h1>
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800">Gestión de Votantes</h1>
+                        {currentUser && currentUser.role !== 1 && currentUser.nombre_zona && (
+                            <p className="text-sm text-gray-600 mt-1">
+                                Mostrando votantes de la zona: <span className="font-semibold">{currentUser.nombre_zona}</span>
+                            </p>
+                        )}
+                    </div>
                     <button
                         onClick={() => navigate('/dashboard')}
                         className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -312,6 +328,7 @@ const VotanteManagement: React.FC = () => {
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nombre Completo</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Documento</th>
+                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Zona</th>
                                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Registrado por</th>
                                         <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Acciones</th>
                                     </tr>
@@ -319,8 +336,11 @@ const VotanteManagement: React.FC = () => {
                                 <tbody>
                                     {filteredVotantes.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="text-center py-8 text-gray-500">
-                                                No se encontraron votantes asignados a ti.
+                                            <td colSpan={5} className="text-center py-8 text-gray-500">
+                                                {currentUser && currentUser.role !== 1 
+                                                    ? "No se encontraron votantes en tu zona." 
+                                                    : "No se encontraron votantes."
+                                                }
                                             </td>
                                         </tr>
                                     ) : (
@@ -328,6 +348,7 @@ const VotanteManagement: React.FC = () => {
                                             <tr key={votante.ID_VOTANTE} className="border-b border-gray-100 hover:bg-gray-50">
                                                 <td className="py-3 px-4 text-sm text-gray-900">{votante.NOMBRE_COMPLETO}</td>
                                                 <td className="py-3 px-4 text-sm text-gray-700">{votante.NUM_DOC}</td>
+                                                <td className="py-3 px-4 text-sm text-gray-700">{votante.ZONA_NOMBRE}</td>
                                                 <td className="py-3 px-4 text-sm text-gray-700">{votante.USUARIO_NOMBRE}</td>
                                                 <td className="py-3 px-4">
                                                     <div className="flex justify-center">

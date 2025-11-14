@@ -15,6 +15,8 @@ import {
   ChevronDown,
   Settings,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
@@ -143,7 +145,11 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [usuariosState, setUsuariosState] = useState<Opcion[]>(usuarios || []);
   const [currentUser, setCurrentUser] = useState<{ id: number; role: number } | null>(null);
 
-  // Tabla últimos ingresos
+  // ESTADO MAESTRO: Contiene TODOS los votantes cargados desde la API
+  const [allVotantes, setAllVotantes] = useState<Votante[]>([]);
+  const [loadingVotantes, setLoadingVotantes] = useState(false);
+
+  // Tabla últimos ingresos (se mantiene igual)
   const [ultimos, setUltimos] = useState<Votante[]>([]);
   const [loadingUltimos, setLoadingUltimos] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -153,9 +159,80 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [fZona, setFZona] = useState("");
   const [fUsuario, setFUsuario] = useState("");
   const [fMesa, setFMesa] = useState("");
-  const [buscando, setBuscando] = useState(false);
-  const [resultados, setResultados] = useState<Votante[]>([]);
   const [exportandoExcel, setExportandoExcel] = useState(false);
+
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const resultadosPorPagina = 10;
+
+  // --- LÓGICA DE FILTRADO DEL LADO DEL CLIENTE ---
+
+  // 1. Usuarios únicos del conjunto MAESTRO de datos para el filtro dinámico
+  const usuariosUnicosEnDatos = useMemo(() => {
+    const usuariosMap = new Map<string, number>();
+    allVotantes.forEach(votante => {
+      if (votante.USUARIO_NOMBRE && votante.USUARIO_NOMBRE !== 'SIN ASIGNAR') {
+        const usuarioEncontrado = usuariosState.find(u => u.nombre === votante.USUARIO_NOMBRE);
+        if (usuarioEncontrado) {
+          usuariosMap.set(votante.USUARIO_NOMBRE, usuarioEncontrado.id);
+        }
+      }
+    });
+    return Array.from(usuariosMap.entries()).map(([nombre, id]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [allVotantes, usuariosState]);
+
+  // 2. Filtrado de datos basado en los filtros seleccionados
+  const datosFiltrados = useMemo(() => {
+    let filtered = allVotantes;
+
+    if (q) {
+      const lowerCaseQuery = q.toLowerCase();
+      filtered = filtered.filter(votante =>
+        votante.NUM_DOC.includes(q) ||
+        votante.NOMBRE_COMPLETO.toLowerCase().includes(lowerCaseQuery)
+      );
+    }
+
+    if (fZona) {
+      const zonaSeleccionada = zonasState.find(z => String(z.id) === fZona);
+      if (zonaSeleccionada) {
+        filtered = filtered.filter(votante => votante.ZONA_NOMBRE === zonaSeleccionada.nombre);
+      }
+    }
+    
+    // El filtro de usuario solo aplica para administradores
+    if (currentUser && currentUser.role === 1 && fUsuario) {
+      const usuarioSeleccionado = usuariosState.find(u => String(u.id) === fUsuario);
+      if (usuarioSeleccionado) {
+        filtered = filtered.filter(votante => votante.USUARIO_NOMBRE === usuarioSeleccionado.nombre);
+      }
+    }
+
+    if (fMesa) {
+      filtered = filtered.filter(votante => votante.MESA === fMesa);
+    }
+
+    return filtered;
+  }, [allVotantes, q, fZona, fUsuario, fMesa, currentUser, zonasState, usuariosState]);
+
+  // 3. Calcular resultados paginados a partir de los datos filtrados
+  const resultadosPaginados = useMemo(() => {
+    const indiceUltimoResultado = paginaActual * resultadosPorPagina;
+    const indicePrimerResultado = indiceUltimoResultado - resultadosPorPagina;
+    return datosFiltrados.slice(indicePrimerResultado, indiceUltimoResultado);
+  }, [datosFiltrados, paginaActual]);
+
+  // 4. Total de páginas basado en los datos filtrados
+  const totalPaginas = useMemo(() => {
+    return Math.ceil(datosFiltrados.length / resultadosPorPagina);
+  }, [datosFiltrados]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [q, fZona, fUsuario, fMesa]);
+
+  // --- FIN LÓGICA DE FILTRADO ---
 
   // Función para cerrar sesión
   const handleLogout = () => {
@@ -205,7 +282,32 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     loadCombos();
   }, [APIVOT, zonas, usuarios]);
 
-  // Cargar últimos ingresos (10)
+  // NUEVA FUNCIÓN: Cargar todos los votantes (datos maestros)
+  const fetchAllVotantesData = async () => {
+    setLoadingVotantes(true);
+    try {
+      // Si no es admin, solo carga sus votantes asignados
+      const url = currentUser && currentUser.role !== 1 
+        ? `${APIVOT}/votantes_list.php?usuario=${currentUser.id}`
+        : `${APIVOT}/votantes_list.php`;
+        
+      const res = await fetch(url).then((r) => r.json());
+      if (res?.success) {
+        setAllVotantes(res.data || []);
+      } else {
+        toast.error(res?.error || "No se pudieron cargar los votantes");
+        setAllVotantes([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar todos los votantes:", error);
+      toast.error("Error de conexión al cargar votantes");
+      setAllVotantes([]);
+    } finally {
+      setLoadingVotantes(false);
+    }
+  };
+
+  // Cargar últimos ingresos (10) - se mantiene igual
   const fetchUltimos = async () => {
     setLoadingUltimos(true);
     try {
@@ -224,12 +326,14 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
   };
 
+  // Cargar datos maestros y últimos ingresos al montar o cuando cambia el usuario
   useEffect(() => {
     if (currentUser) {
+      fetchAllVotantesData();
       fetchUltimos();
     }
   }, [currentUser]);
-
+  
   // Form helpers
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -262,9 +366,8 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         toast.success("Votante guardado ✅");
         resetForm();
         fetchUltimos();
-        // FIX: Llamar a doSearch siempre para refrescar la tabla de resultados,
-        // sin importar si hay filtros activos o no.
-        doSearch(q, fZona, fUsuario, fMesa);
+        // Actualizar la lista maestra para que incluya el nuevo votante
+        await fetchAllVotantesData();
       } else {
         toast.error(res?.message || res?.error || "No se pudo guardar");
       }
@@ -275,40 +378,11 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
   };
 
-  // Función para obtener todos los datos de votantes según los filtros
-  const fetchAllVotantes = async (): Promise<Votante[]> => {
-    try {
-      const params = new URLSearchParams();
-      if (fZona) params.set("zona", fZona);
-      
-      if (currentUser && currentUser.role !== 1) {
-        params.set("usuario", String(currentUser.id));
-      } else if (fUsuario) {
-        params.set("usuario", fUsuario);
-      }
-      
-      if (fMesa) params.set("mesa", fMesa);
-      if (q) params.set("q", q);
-
-      const res = await fetch(
-        `${APIVOT}/votantes_search.php?${params.toString()}`
-      ).then((r) => r.json());
-
-      if (res?.success) {
-        return res.data || [];
-      }
-      return [];
-    } catch {
-      // FIX: Añadir manejo de errores y notificación al usuario.
-      toast.error("Error al obtener los datos para exportar");
-      return [];
-    }
-  };
-
+  // Función para exportar a Excel ahora usa los datos filtrados
   const descargarExcel = async () => {
     setExportandoExcel(true);
     try {
-      const datos = await fetchAllVotantes();
+      const datos = datosFiltrados; // Usar los datos ya filtrados en el cliente
 
       if (datos.length === 0) {
         toast.warning("No hay datos para exportar");
@@ -446,62 +520,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       setExportandoExcel(false);
     }
   };
-
-  // Debounce
-  const debounced = <T extends (...args: any[]) => any>(fn: T, delay = 450) => {
-    let timer: any;
-    return (...args: any[]) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  };
-
-  const doSearch = async (
-    query: string,
-    zonaId: string,
-    usuarioId: string,
-    mesaId: string
-  ) => {
-    setBuscando(true);
-    try {
-      const params = new URLSearchParams();
-      if (query) params.set("q", query);
-      if (zonaId) params.set("zona", zonaId);
-      
-      if (currentUser && currentUser.role !== 1) {
-        params.set("usuario", String(currentUser.id));
-      } else if (usuarioId) {
-        params.set("usuario", usuarioId);
-      }
-      
-      if (mesaId) params.set("mesa", mesaId);
-
-      const res = await fetch(
-        `${APIVOT}/votantes_search.php?${params.toString()}`
-      ).then((r) => r.json());
-      if (res?.success) {
-        setResultados(res.data || []);
-      } else {
-        // FIX: Manejar el caso en que la API devuelva success: false
-        toast.error(res?.error || "Error al buscar votantes");
-        setResultados([]);
-      }
-    } catch (error) {
-      // FIX: Añadir manejo de errores de red o del servidor
-      console.error("Error en doSearch:", error);
-      //toast.error("Error de conexión al buscar votantes");
-      setResultados([]);
-    } finally {
-      setBuscando(false);
-    }
-  };
-
-  const debouncedSearch = useMemo(() => debounced(doSearch, 500), [currentUser]);
-  useEffect(() => {
-    if (currentUser) {
-      debouncedSearch(q, fZona, fUsuario, fMesa);
-    }
-  }, [q, fZona, fUsuario, fMesa, debouncedSearch, currentUser]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -956,55 +974,22 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 ">
-                <div className="relative hidden">
-                  <select
-                    value={fMesa}
-                    onChange={(e) => setFMesa(e.target.value)}
-                    className="w-full appearance-none p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 
-           border border-slate-300 shadow-inner text-slate-700
-           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
-                  >
-                    <option value="">Mesa: Todas</option>
-                    {mesas100.map((n) => (
-                      <option key={n} value={n}>
-                        Mesa {n}
-                      </option>
-                    ))}
-                  </select>
+              <div className="grid grid-cols-1 gap-3">
+           
 
-                  <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={fZona}
-                    onChange={(e) => setFZona(e.target.value)}
-                    className="w-full appearance-none p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 
-                 border border-slate-300 shadow-inner text-slate-700
-                 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
-                  >
-                    <option value="">Municipio: Todas</option>
-                    {zonasState.map((z) => (
-                      <option key={z.id} value={String(z.id)}>
-                        {z.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
-                </div>
+        
 
                 {currentUser && currentUser.role === 1 && (
-                  <div className="relative col-span-2">
+                  <div className="relative">
                     <select
                       value={fUsuario}
                       onChange={(e) => setFUsuario(e.target.value)}
                       className="w-full appearance-none p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 
-                     border border-slate-300 shadow-inner text-slate-700
-                     focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
+                                border border-slate-300 shadow-inner text-slate-700
+                                focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none pr-9"
                     >
                       <option value="">Usuario: Todos</option>
-                      {usuariosState.map((u) => (
+                      {usuariosUnicosEnDatos.map((u) => (
                         <option key={u.id} value={String(u.id)}>
                           {u.nombre}
                         </option>
@@ -1013,46 +998,95 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                     <span className="absolute right-3 top-3 pointer-events-none text-slate-400">▼</span>
                   </div>
                 )}
+
+                <button
+                  onClick={() => {
+                    setQ("");
+                    setFZona("");
+                    setFUsuario("");
+                    setFMesa("");
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 
+                             text-slate-700 shadow hover:shadow-md transition flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Limpiar filtros
+                </button>
               </div>
 
+                 <div className="flex items-center gap-2 mb-3">
+              <Users className="w-5 h-5 text-emerald-600" />
+              <h4 className="font-semibold">Últimos ingresos</h4>
+            </div>
+
+
               <div className="mt-2">
-                {buscando ? (
+                {loadingVotantes ? (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Buscando...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Cargando datos...
                   </div>
-                ) : resultados.length > 0 ? (
-                  <div className="max-h-72 overflow-auto rounded-xl border border-slate-200">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-slate-50 text-slate-600">
-                        <tr>
-                          <th className="text-left px-3 py-2 font-medium">Documento</th>
-                          <th className="text-left px-3 py-2 font-medium">Nombre</th>
-                          <th className="text-left px-3 py-2 font-medium">Usuario</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {resultados.map((r, i) => (
-                          <tr key={i} className="border-t border-slate-200 hover:bg-slate-50/70">
-                            <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.NUM_DOC}</td>
-                            <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
-                            <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
+                ) : datosFiltrados.length > 0 ? (
+                  <>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-xs text-slate-500">
+                        {datosFiltrados.length} de {allVotantes.length} votantes
+                      </p>
+                    </div>
+                    <div className="max-h-80 overflow-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-slate-50 text-slate-600">
+                          <tr>
+                            <th className="text-left px-3 py-2 font-medium">Documento</th>
+                            <th className="text-left px-3 py-2 font-medium">Nombre</th>
+                            <th className="text-left px-3 py-2 font-medium">Usuario</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {resultadosPaginados.map((r, i) => (
+                            <tr key={i} className="border-t border-slate-200 hover:bg-slate-50/70">
+                              <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.NUM_DOC}</td>
+                              <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
+                              <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Paginación */}
+                    {totalPaginas > 1 && (
+                      <div className="flex justify-between items-center mt-3 px-1">
+                        <button
+                          onClick={() => setPaginaActual(paginaActual > 1 ? paginaActual - 1 : 1)}
+                          disabled={paginaActual === 1}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Anterior
+                        </button>
+                        <span className="text-sm text-slate-600">
+                          Página {paginaActual} de {totalPaginas}
+                        </span>
+                        <button
+                          onClick={() => setPaginaActual(paginaActual < totalPaginas ? paginaActual + 1 : paginaActual)}
+                          disabled={paginaActual === totalPaginas}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                        >
+                          Siguiente
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-xs text-slate-500">Sin resultados por ahora.</p>
+                  !loadingVotantes && <p className="text-xs text-slate-500">No se encontraron votantes.</p>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="w-5 h-5 text-emerald-600" />
-              <h4 className="font-semibold">Últimos ingresos</h4>
-            </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hidden">
+         
 
             {loadingUltimos ? (
               <div className="flex items-center gap-2 text-sm text-slate-500">
