@@ -74,7 +74,6 @@ const tiposDoc = [
   { value: "PAS", label: "Pasaporte" },
 ];
 
-const mesas100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
 
 // Función para obtener el token JWT
 const getToken = () => {

@@ -122,37 +122,38 @@ const MunicipalityManagement: React.FC = () => {
         fetchUsuarios();
     }, []);
 
-    // --- EFECTO CLAVE PARA FILTRAR MUNICIPIOS ---
-    useEffect(() => {
-        // Asegurarnos de que haya un departamento seleccionado y que la lista de departamentos ya esté cargada
-        if (form.dpto_asignado && departamentos.length > 0) {
-            // Buscar el objeto del departamento seleccionado
-            const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
-            
-            if (departamentoSeleccionado) {
-                // Normalizamos el nombre del departamento a minúsculas y sin espacios para una comparación robusta
-                const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
 
-                // Filtrar municipios que pertenecen al departamento seleccionado
-                const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
-                    .filter(([municipio, depto]) => {
-                        // Normalizamos también el nombre del departamento del objeto de comparación
-                        return depto.toLowerCase().trim() === nombreDeptoNormalizado;
-                    })
-                    .map(([municipio]) => municipio);
-                
-                setMunicipiosFiltrados(municipiosDelDepto);
-            } else {
-                 // Si el ID no corresponde a ningún departamento, limpiamos la lista.
-                setMunicipiosFiltrados([]);
-            }
+
+
+    
+useEffect(() => {
+    if (form.dpto_asignado && departamentos.length > 0) {
+        const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
+        
+        if (departamentoSeleccionado) {
+            const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
+
+            const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
+                .filter(([municipio, depto]) => {
+                    console.log(municipio); 
+                    return depto.toLowerCase().trim() === nombreDeptoNormalizado;
+                })
+                .map(([municipio]) => municipio);
+            
+            setMunicipiosFiltrados(municipiosDelDepto);
         } else {
-            // Si no hay departamento seleccionado, la lista de municipios debe estar vacía.
             setMunicipiosFiltrados([]);
         }
-    }, [form.dpto_asignado, departamentos]); // Se ejecuta solo cuando cambia el departamento seleccionado o la lista de departamentos
+    } else {
+        setMunicipiosFiltrados([]);
+    }
+}, [form.dpto_asignado, departamentos]);
 
-    // --- Manejadores de Eventos ---
+
+
+
+
+  
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         
