@@ -12,6 +12,8 @@ import { Linkedin } from 'lucide-react';
 interface DecodedToken {
   nombre: string;
   tipo_usuario: number;
+  zona_asignada?: number;
+  nombre_zona?: string;
   exp: number;
   iat: number;
 }
@@ -73,30 +75,39 @@ const AdminGold: React.FC = () => {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('https://devsoul.co/api_votantes/login_admin.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    const res = await fetch('https://devsoul.co/api_votantes/login_admin.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (data && data.success && data.token) {
-        localStorage.setItem('token', data.token);
-        const decoded = jwtDecode<DecodedToken>(data.token);
-        localStorage.setItem('usuarioNombre', decoded.nombre);
-        toast.success(t.success);
-        setTimeout(() => navigate('/dashboard'), 1500);
-      } else {
-        toast.error(data?.error || t.fail);
+    if (data && data.success && data.token) {
+      localStorage.setItem('token', data.token);
+      const decoded = jwtDecode<DecodedToken>(data.token);
+      localStorage.setItem('usuarioNombre', decoded.nombre);
+      
+      // Guardar información de la zona
+      if (decoded.zona_asignada) {
+        localStorage.setItem('zonaAsignada', decoded.zona_asignada.toString());
       }
-    } catch (error) {
-      toast.error('Error de conexión. Intenta nuevamente.');
+      if (decoded.nombre_zona) {
+        localStorage.setItem('nombreZona', decoded.nombre_zona);
+      }
+      
+      toast.success(t.success);
+      setTimeout(() => navigate('/dashboard'), 1500);
+    } else {
+      toast.error(data?.error || t.fail);
     }
-  };
+  } catch (error) {
+    toast.error('Error de conexión. Intenta nuevamente.');
+  }
+};
 
   const handleResetPassword = async () => {
     if (!resetEmail) {
