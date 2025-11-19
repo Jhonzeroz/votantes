@@ -17,17 +17,14 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
+import MunicipiosAdepartamentos from '../data/municipiosAdepartamentos'; 
 
-/**
- * Props de este módulo.
- * Si no pasas zonas/usuarios, hará fetch a endpoints por defecto.
- */
 export type Opcion = { id: number; nombre: string };
 
-// Definimos el tipo para los datos de un votante
 export type Votante = {
   NUM_DOC: string;
   NOMBRE_COMPLETO: string;
@@ -35,6 +32,7 @@ export type Votante = {
   PUESTO: string;
   LUGAR_VOTACION: string;
   ZONA_NOMBRE: string;
+  MUNICIPIO: string;
   USUARIO_NOMBRE: string;
   CREADO_EN: string;
 };
@@ -42,7 +40,7 @@ export type Votante = {
 interface VotantesViewProps {
   zonas?: Opcion[];
   usuarios?: Opcion[];
-  APIVOT?: string; // p.e. "/api/votos"
+  APIVOT?: string;
 }
 
 const defaultAPIVOT = "https://devsoul.co/api_votantes";
@@ -50,6 +48,11 @@ const defaultAPIVOT = "https://devsoul.co/api_votantes";
 interface MunicipioData {
   ID_MUNICIPIO: string | number;
   NOMBRE_MUNICIPIO: string;
+}
+
+interface DepartamentoData {
+  ID_DPTO: number;
+  NOMBRE_DPTO: string;
 }
 
 const initialForm = {
@@ -61,11 +64,15 @@ const initialForm = {
   apellido2: "",
   telefono: "",
   direccion: "",
+  // CAMBIADO: Ahora id_zona_asignada contendrá el ID del departamento
   id_zona_asignada: "",
   id_usuario_asignado: "",
   // NUEVOS CAMPOS
   puesto: "",
   lugar_votacion: "",
+  municipio: "", // Agregamos campo explícito para el municipio
+  // 'dpto_asignado' es un campo de UI para filtrar los municipios. No se envía al backend.
+  dpto_asignado: "",
 };
 
 const tiposDoc = [
@@ -73,7 +80,6 @@ const tiposDoc = [
   { value: "CE", label: "Cédula Extranjería" },
   { value: "PAS", label: "Pasaporte" },
 ];
-
 
 // Función para obtener el token JWT
 const getToken = () => {
@@ -88,8 +94,8 @@ const getCookie = (name: string) => {
   return null;
 };
 
-// Función para decodificar el token JWT y obtener el ID del usuario
-const getCurrentUserId = () => {
+// Función para decodificar el token JWT y obtener la información del usuario
+const getCurrentUserInfo = () => {
   const token = getToken();
   if (!token) return null;
   
@@ -101,27 +107,13 @@ const getCurrentUserId = () => {
     }).join(''));
     
     const payload = JSON.parse(jsonPayload);
-    return payload.sub;
-  } catch (error) {
-    console.error('Error al decodificar el token JWT:', error);
-    return null;
-  }
-};
-
-// Función para obtener el tipo de usuario
-const getCurrentUserRole = () => {
-  const token = getToken();
-  if (!token) return null;
-  
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    
-    const payload = JSON.parse(jsonPayload);
-    return payload.tipo_usuario;
+    return {
+      id: payload.sub,
+      role: payload.tipo_usuario,
+      rol_usuario: payload.rol_usuario,
+      zonaAsignada: payload.zona_asignada,
+      nombreZona: payload.nombre_zona
+    };
   } catch (error) {
     console.error('Error al decodificar el token JWT:', error);
     return null;
@@ -142,13 +134,24 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [zonasState, setZonasState] = useState<Opcion[]>(zonas || []);
   const [usuariosState, setUsuariosState] = useState<Opcion[]>(usuarios || []);
-  const [currentUser, setCurrentUser] = useState<{ id: number; role: number } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ 
+    id: number; 
+    role: number; 
+    rol_usuario?: number | null;
+    zonaAsignada?: number | null;
+    nombreZona?: string | null;
+  } | null>(null);
+  
+  // Nuevos estados para departamentos y municipios filtrados
+  const [departamentos, setDepartamentos] = useState<DepartamentoData[]>([]);
+  const [municipiosFiltrados, setMunicipiosFiltrados] = useState<string[]>([]);
+  const [loadingDepartamentos, setLoadingDepartamentos] = useState(true);
 
   // ESTADO MAESTRO: Contiene TODOS los votantes cargados desde la API
   const [allVotantes, setAllVotantes] = useState<Votante[]>([]);
   const [loadingVotantes, setLoadingVotantes] = useState(false);
 
-  // Tabla últimos ingresos (se mantiene igual)
+  // Tabla últimos ingresos
   const [ultimos, setUltimos] = useState<Votante[]>([]);
   const [loadingUltimos, setLoadingUltimos] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -243,10 +246,15 @@ const VotantesView: React.FC<VotantesViewProps> = ({
 
   // Efecto para obtener el usuario actual al cargar el componente
   useEffect(() => {
-    const userId = getCurrentUserId();
-    const userRole = getCurrentUserRole();
-    if (userId && userRole !== null) {
-      setCurrentUser({ id: Number(userId), role: Number(userRole) });
+    const userInfo = getCurrentUserInfo();
+    if (userInfo) {
+      setCurrentUser({ 
+        id: Number(userInfo.id), 
+        role: Number(userInfo.role),
+        rol_usuario: userInfo.rol_usuario ? Number(userInfo.rol_usuario) : null,
+        zonaAsignada: userInfo.zonaAsignada,
+        nombreZona: userInfo.nombreZona
+      });
     }
   }, []);
 
@@ -260,6 +268,16 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   useEffect(() => {
     const loadCombos = async () => {
       try {
+        // Cargar departamentos
+        const response = await fetch(`${APIVOT}/dpto_options.php`);
+        const data = await response.json();
+        if (data?.success && Array.isArray(data.data)) {
+          setDepartamentos(data.data);
+        } else {
+          toast.error("Error al cargar los departamentos");
+        }
+        setLoadingDepartamentos(false);
+
         if (!zonas) {
           const rz = await fetch(`${APIVOT}/mncpio_list.php`).then((r) => r.json());
           if (rz?.success && Array.isArray(rz.data)) {
@@ -281,49 +299,105 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     loadCombos();
   }, [APIVOT, zonas, usuarios]);
 
-  // NUEVA FUNCIÓN: Cargar todos los votantes (datos maestros)
-  const fetchAllVotantesData = async () => {
-    setLoadingVotantes(true);
-    try {
-      // Si no es admin, solo carga sus votantes asignados
-      const url = currentUser && currentUser.role !== 1 
-        ? `${APIVOT}/votantes_list.php?usuario=${currentUser.id}`
-        : `${APIVOT}/votantes_list.php`;
-        
-      const res = await fetch(url).then((r) => r.json());
-      if (res?.success) {
-        setAllVotantes(res.data || []);
-      } else {
-        toast.error(res?.error || "No se pudieron cargar los votantes");
-        setAllVotantes([]);
-      }
-    } catch (error) {
-      console.error("Error al cargar todos los votantes:", error);
-      toast.error("Error de conexión al cargar votantes");
-      setAllVotantes([]);
-    } finally {
-      setLoadingVotantes(false);
-    }
-  };
+  // Efecto para filtrar municipios según el departamento seleccionado
+useEffect(() => {
+    if (form.dpto_asignado && departamentos.length > 0) {
+      const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
+      
+      if (departamentoSeleccionado) {
+        const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
 
-  // Cargar últimos ingresos (10) - se mantiene igual
-  const fetchUltimos = async () => {
-    setLoadingUltimos(true);
-    try {
-      const url = currentUser && currentUser.role !== 1 
-        ? `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`
-        : `${APIVOT}/votantes_list.php?limit=10`;
+        const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
+          .filter(([municipio, depto]) => {
+            // Simulamos el uso de la variable 'municipio' para evitar la advertencia
+            console.log(`Filtrando municipio: ${municipio}`); 
+            
+            return depto.toLowerCase().trim() === nombreDeptoNormalizado;
+          })
+          .map(([municipio]) => municipio);
         
-      const res = await fetch(url).then((r) => r.json());
-      if (res?.success) setUltimos(res.data || []);
-      else setErr(res?.error || "No se pudieron obtener los últimos ingresos");
-    } catch {
-      setErr("No se pudieron obtener los últimos ingresos");
-      toast.error("No se pudieron obtener los últimos ingresos");
-    } finally {
-      setLoadingUltimos(false);
+        setMunicipiosFiltrados(municipiosDelDepto);
+      } else {
+        setMunicipiosFiltrados([]);
+      }
+    } else {
+      setMunicipiosFiltrados([]);
     }
-  };
+  }, [form.dpto_asignado, departamentos]);
+
+
+
+
+  // NUEVA FUNCIÓN: Cargar todos los votantes (datos maestros)
+const fetchAllVotantesData = async () => {
+  setLoadingVotantes(true);
+  try {
+    let url = `${APIVOT}/votantes_list.php`;
+    
+    // Determinar los parámetros según el rol del usuario
+    if (currentUser) {
+      if (currentUser.role === 1) {
+        // Administrador: ve todos los votantes
+        url = `${APIVOT}/votantes_list.php?limit=10`;
+      } else if (currentUser.rol_usuario === 2 || currentUser.rol_usuario === 0) {
+        // Líder de departamento: ve solo los votantes de su zona
+        // Usamos nombreZona en lugar de zonaAsignada
+        url = `${APIVOT}/votantes_list.php?limit=10&nombre_zona=${encodeURIComponent(currentUser.nombreZona || '')}`;
+      } else {
+        // Otros roles: ve solo sus votantes asignados
+        url = `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`;
+      }
+    }
+      
+    const res = await fetch(url).then((r) => r.json());
+    if (res?.success) {
+      setAllVotantes(res.data || []);
+    } else {
+      toast.error(res?.error || "No se pudieron cargar los votantes");
+      setAllVotantes([]);
+    }
+  } catch (error) {
+    console.error("Error al cargar todos los votantes:", error);
+    toast.error("Error de conexión al cargar votantes");
+    setAllVotantes([]);
+  } finally {
+    setLoadingVotantes(false);
+  }
+};
+
+// Cargar últimos ingresos (10)
+const fetchUltimos = async () => {
+  setLoadingUltimos(true);
+  try {
+    let url = `${APIVOT}/votantes_list.php?limit=10`;
+    
+    // Determinar los parámetros según el rol del usuario
+    if (currentUser) {
+      if (currentUser.role === 1) {
+        // Administrador: ve todos los votantes
+        url = `${APIVOT}/votantes_list.php?limit=10`;
+      } else if (currentUser.rol_usuario === 2 || currentUser.rol_usuario === 0) {
+        // Líder de departamento: ve solo los votantes de su zona
+        // Usamos nombreZona en lugar de zonaAsignada
+        url = `${APIVOT}/votantes_list.php?limit=10&nombre_zona=${encodeURIComponent(currentUser.nombreZona || '')}`;
+      } else {
+        // Otros roles: ve solo sus votantes asignados
+        url = `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`;
+      }
+    }
+      
+    const res = await fetch(url).then((r) => r.json());
+    if (res?.success) setUltimos(res.data || []);
+    else setErr(res?.error || "No se pudieron obtener los últimos ingresos");
+  } catch {
+    setErr("No se pudieron obtener los últimos ingresos");
+    toast.error("No se pudieron obtener los últimos ingresos");
+  } finally {
+    setLoadingUltimos(false);
+  }
+};
+
+
 
   // Cargar datos maestros y últimos ingresos al montar o cuando cambia el usuario
   useEffect(() => {
@@ -338,15 +412,32 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    
+    setForm((prev) => {
+      const newForm = { ...prev, [name]: value };
+      
+      // CAMBIADO: Si cambia el departamento, actualizamos id_zona_asignada
+      if (name === 'dpto_asignado') {
+        newForm.id_zona_asignada = value; // El ID del departamento
+        newForm.municipio = ""; // Limpiamos el municipio
+      }
+      
+      // Si cambia el municipio, lo guardamos en el campo municipio
+      if (name === 'municipio') {
+        newForm.municipio = value;
+      }
+      
+      return newForm;
+    });
   };
 
   const resetForm = () => setForm(initialForm);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.id_zona_asignada || !form.id_usuario_asignado) {
-      return toast.warning("Selecciona un municipio y usuario asignado");
+    // CAMBIADO: Ahora validamos id_zona_asignada (departamento) y municipio
+    if (!form.id_zona_asignada || !form.municipio || !form.id_usuario_asignado) {
+      return toast.warning("Selecciona un departamento, municipio y usuario asignado");
     }
     if (!form.num_doc || !form.nombre1 || !form.apellido1) {
       return toast.warning(
@@ -356,6 +447,9 @@ const VotantesView: React.FC<VotantesViewProps> = ({
 
     setSaving(true);
     try {
+      // El objeto 'form' se envía como URLSearchParams.
+      // Ahora id_zona_asignada contiene el ID del departamento
+      // y municipio contiene el nombre del municipio
       const res = await fetch(`${APIVOT}/votante_create.php`, {
         method: "POST",
         body: new URLSearchParams(form as any),
@@ -389,11 +483,12 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         return;
       }
 
+      // Modificamos los datos para incluir el campo municipio
       const datosExcel = datos.map((votante: Votante) => ({
         'Documento': votante.NUM_DOC,
         'Nombre Completo': votante.NOMBRE_COMPLETO,
-        'Mesa': votante.MESA,
-        'Municipio': votante.ZONA_NOMBRE,
+        'Departamento': votante.ZONA_NOMBRE,
+        'Municipio': votante.MUNICIPIO,
         'Usuario Asignado': votante.USUARIO_NOMBRE,
         'Fecha de Registro': votante.CREADO_EN
       }));
@@ -466,7 +561,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         worksheetResumen['A' + (currentRow + 1)].s = userTitleStyle;
         currentRow++;
 
-        const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'MESA', 'MUNICIPIO', 'FECHA DE REGISTRO'];
+        const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'DEPARTAMENTO', 'MUNICIPIO', 'FECHA DE REGISTRO'];
         XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
         
         detailHeaders.forEach((_, colIndex) => {
@@ -477,7 +572,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
         currentRow++;
 
         const voterData = votantesDelUsuario.map(v => [
-          v.NUM_DOC, v.NOMBRE_COMPLETO, v.MESA, v.PUESTO, v.LUGAR_VOTACION, v.ZONA_NOMBRE, v.CREADO_EN
+          v.NUM_DOC, v.NOMBRE_COMPLETO, v.ZONA_NOMBRE, v.MUNICIPIO, v.CREADO_EN
         ]);
         XLSX.utils.sheet_add_aoa(worksheetResumen, voterData, { origin: `A${currentRow + 1}` });
         currentRow += votantesDelUsuario.length;
@@ -499,9 +594,9 @@ const VotantesView: React.FC<VotantesViewProps> = ({
       worksheetResumen['!cols'] = [
         { wch: 15 },
         { wch: 35 },
-        { wch: 8 },
+        { wch: 20 },
         { wch: 25 },
-        { wch: 30 },
+        { wch: 20 },
         { wch: 20 },
         { wch: 20 },
       ];
@@ -708,19 +803,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                         Promover Usuario
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log("Navegando a /Minicipios");
-                          navigate("/Minicipios");
-                          setAdminMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                      >
-                        <MapPin className="w-4 h-4" />
-                        Municipios
-                      </button>
-
                       <div className="border-t border-gray-200 my-1"></div>
 
                       <button
@@ -873,27 +955,80 @@ const VotantesView: React.FC<VotantesViewProps> = ({
               </div>
             </div>
 
-            {/* Relaciones */}
+            {/* Relaciones - Departamento y Municipio */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Departamento
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Building2 className="w-4 h-4 text-slate-400" />
+                </div>
+                <select
+                  name="dpto_asignado"
+                  value={form.dpto_asignado}
+                  onChange={handleChange}
+                  disabled={loadingDepartamentos}
+                  className="w-full pl-10 pr-3 py-3 rounded-xl bg-white border border-slate-200 shadow-inner
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none appearance-none"
+                >
+                  <option value="">{loadingDepartamentos ? "Cargando..." : "Seleccionar departamento"}</option>
+                  {departamentos.map(dpto => (
+                    <option key={dpto.ID_DPTO} value={dpto.ID_DPTO.toString()}>
+                      {dpto.NOMBRE_DPTO}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Municipio
               </label>
-              <select
-                name="id_zona_asignada"
-                value={form.id_zona_asignada}
-                onChange={handleChange}
-                required
-                className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
-                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
-              >
-                <option value="">-- Seleccione un Municipio --</option>
-                {zonasState.map((z) => (
-                  <option key={z.id} value={String(z.id)}>
-                    {z.nombre}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                </div>
+                {/* 
+                  CAMBIADO: Ahora el campo se llama "municipio" y envía el nombre del municipio
+                  El ID del departamento se envía en el campo "id_zona_asignada"
+                */}
+                <select
+                  name="municipio"
+                  value={form.municipio}
+                  onChange={handleChange}
+                  required
+                  disabled={!form.dpto_asignado || municipiosFiltrados.length === 0}
+                  className="w-full pl-10 pr-3 py-3 rounded-xl bg-white border border-slate-200 shadow-inner
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none appearance-none disabled:bg-slate-100 disabled:text-slate-500"
+                >
+                  <option value="">
+                    {!form.dpto_asignado 
+                      ? "Seleccione primero un departamento" 
+                      : municipiosFiltrados.length === 0 
+                        ? "No hay municipios disponibles para este depto." 
+                        : "Seleccionar municipio"}
                   </option>
-                ))}
-              </select>
+                  {municipiosFiltrados.map(municipio => (
+                    <option key={municipio} value={municipio}>
+                      {municipio}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
+            
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Usuario asignado
@@ -974,10 +1109,6 @@ const VotantesView: React.FC<VotantesViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-           
-
-        
-
                 {currentUser && currentUser.role === 1 && (
                   <div className="relative">
                     <select
@@ -1013,11 +1144,10 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                 </button>
               </div>
 
-                 <div className="flex items-center gap-2 mb-3">
-              <Users className="w-5 h-5 text-emerald-600" />
-              <h4 className="font-semibold">Últimos ingresos</h4>
-            </div>
-
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-5 h-5 text-emerald-600" />
+                <h4 className="font-semibold">Últimos ingresos</h4>
+              </div>
 
               <div className="mt-2">
                 {loadingVotantes ? (
@@ -1037,6 +1167,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                           <tr>
                             <th className="text-left px-3 py-2 font-medium">Documento</th>
                             <th className="text-left px-3 py-2 font-medium">Nombre</th>
+                            <th className="text-left px-3 py-2 font-medium">Municipio</th>
                             <th className="text-left px-3 py-2 font-medium">Usuario</th>
                           </tr>
                         </thead>
@@ -1045,6 +1176,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                             <tr key={i} className="border-t border-slate-200 hover:bg-slate-50/70">
                               <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.NUM_DOC}</td>
                               <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
+                              <td className="px-3 py-2">{r.MUNICIPIO || 'No especificado'}</td>
                               <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
                             </tr>
                           ))}
@@ -1085,7 +1217,10 @@ const VotantesView: React.FC<VotantesViewProps> = ({
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hidden">
-         
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-5 h-5 text-emerald-600" />
+              <h4 className="font-semibold">Últimos ingresos</h4>
+            </div>
 
             {loadingUltimos ? (
               <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -1098,6 +1233,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                     <tr>
                       <th className="text-left px-3 py-2 font-medium">Documento</th>
                       <th className="text-left px-3 py-2 font-medium">Nombre</th>
+                      <th className="text-left px-3 py-2 font-medium">Municipio</th>
                       <th className="text-left px-3 py-2 font-medium">Usuario</th>
                       <th className="text-left px-3 py-2 font-medium">Fecha</th>
                     </tr>
@@ -1119,6 +1255,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
                             {r.NUM_DOC}
                           </td>
                           <td className="px-3 py-2">{r.NOMBRE_COMPLETO}</td>
+                          <td className="px-3 py-2">{r.MUNICIPIO || 'No especificado'}</td>
                           <td className="px-3 py-2">{r.USUARIO_NOMBRE}</td>
                           <td className="px-3 py-2 text-xs text-slate-500">
                             {r.CREADO_EN}

@@ -57,6 +57,7 @@ const getCurrentUser = () => {
         return {
             id: payload.sub, // ID del usuario
             role: payload.tipo_usuario, // Tipo de usuario
+            rol_usuario: payload.rol_usuario, // Rol específico del usuario
             nombre: payload.nombre, // Nombre del usuario
             zona_asignada: payload.zona_asignada, // Zona asignada del usuario
             nombre_zona: payload.nombre_zona // Nombre de la zona asignada
@@ -88,7 +89,8 @@ const VotanteManagement: React.FC = () => {
     // --- Estado para el usuario actual ---
     const [currentUser, setCurrentUser] = useState<{ 
         id: number; 
-        role: number; 
+        role: number;
+        rol_usuario: number | string | null | undefined;
         nombre: string;
         zona_asignada?: number;
         nombre_zona?: string;
@@ -99,8 +101,8 @@ const VotanteManagement: React.FC = () => {
         nombre_usuario: "",
         apellido_usuario: "",
         telefono_usuario: "",
-        rol_usuario: "LIDER", // Rol por defecto
-        estado_usuario: "1", // Activo por defecto
+        rol_usuario: "LIDER",
+        estado_usuario: "1",
         zona_asignada: "",
         correo_usuario: "",
         contrasena_usuario: ""
@@ -113,6 +115,7 @@ const VotanteManagement: React.FC = () => {
             setCurrentUser({
                 id: Number(userData.id),
                 role: Number(userData.role),
+                rol_usuario: userData.rol_usuario,
                 nombre: userData.nombre,
                 zona_asignada: userData.zona_asignada ? Number(userData.zona_asignada) : undefined,
                 nombre_zona: userData.nombre_zona
@@ -140,32 +143,28 @@ const VotanteManagement: React.FC = () => {
         };
 
         const fetchVotantes = async () => {
-            // Si no hay un usuario, no se puede hacer la búsqueda.
             if (!currentUser) return;
 
             setLoadingVotantes(true);
             try {
-                // Construir la URL con el filtro de usuario si no es administrador
                 let url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
                 
-                // Si no es administrador, filtrar por su ID
-                if (currentUser.role !== 1) {
-                    url += `?usuario=${currentUser.id}`;
+                if (currentUser.role === 1) {
+                    // Administrador: ve todos los votantes
+                    url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                } else if (currentUser.rol_usuario === 2) {
+                    // Líder de departamento: ve todos los votantes de su departamento
+                    url = `https://devsoul.co/api_votantes/votantes_list.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
+                } else {
+                    // Todos los demás roles (incluyendo rol_usuario = 0): ven solo los votantes que han creado
+                    url = `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`;
                 }
                 
                 const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data?.success && Array.isArray(data.data)) {
-                    // Si el usuario no es administrador, filtrar por su zona
-                    if (currentUser.role !== 1 && currentUser.nombre_zona) {
-                        const filteredData = data.data.filter((votante: Votante) => 
-                            votante.ZONA_NOMBRE === currentUser.nombre_zona
-                        );
-                        setVotantes(filteredData);
-                    } else {
-                        setVotantes(data.data);
-                    }
+                    setVotantes(data.data);
                 } else {
                     toast.error("Error al cargar los votantes");
                 }
@@ -181,7 +180,7 @@ const VotanteManagement: React.FC = () => {
         if (currentUser) {
             fetchVotantes();
         }
-    }, [currentUser]); // Se ejecuta cuando el usuario actual cambia
+    }, [currentUser]);
 
     // --- Manejadores de Eventos ---
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -261,6 +260,29 @@ const VotanteManagement: React.FC = () => {
             setSaved(true);
             setTimeout(() => {
                 handleCloseModal();
+                // Recargar la lista de votantes con la misma lógica de filtrado
+                const fetchVotantes = async () => {
+                    if (!currentUser) return;
+                    
+                    let url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                    
+                    if (currentUser.role === 1) {
+                        url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                    } else if (currentUser.rol_usuario === 2) {
+                        url = `https://devsoul.co/api_votantes/votantes_list.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
+                    } else {
+                        url = `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`;
+                    }
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data?.success && Array.isArray(data.data)) {
+                        setVotantes(data.data);
+                    }
+                };
+                
+                fetchVotantes();
             }, 1500);
 
         } catch (error) {
@@ -286,9 +308,13 @@ const VotanteManagement: React.FC = () => {
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">Gestión de Votantes</h1>
-                        {currentUser && currentUser.role !== 1 && currentUser.nombre_zona && (
+                        {currentUser && currentUser.role !== 1 && (
                             <p className="text-sm text-gray-600 mt-1">
-                                Mostrando votantes de la zona: <span className="font-semibold">{currentUser.nombre_zona}</span>
+                                {currentUser.rol_usuario === 2 ? (
+                                    <>Mostrando votantes del departamento <span className="font-semibold">{currentUser.nombre_zona}</span></>
+                                ) : (
+                                    <>Mostrando votantes registrados por: <span className="font-semibold">{currentUser.nombre}</span></>
+                                )}
                             </p>
                         )}
                     </div>
@@ -335,9 +361,9 @@ const VotanteManagement: React.FC = () => {
                                 <tbody>
                                     {filteredVotantes.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="text-center py-8 text-gray-500">
+                                            <td colSpan={4} className="text-center py-8 text-gray-500">
                                                 {currentUser && currentUser.role !== 1 
-                                                    ? "No se encontraron votantes en tu zona." 
+                                                    ? "No se encontraron votantes registrados por ti." 
                                                     : "No se encontraron votantes."
                                                 }
                                             </td>
@@ -485,7 +511,7 @@ const VotanteManagement: React.FC = () => {
                                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         required
                                     >
-                                        <option value="">Seleccionar Departamento</option>
+                                        <option value="">{loadingZonas ? "Cargando..." : "Seleccionar Departamento"}</option>
                                         {zonas.map(zona => (
                                             <option key={zona.id} value={zona.id.toString()}>{zona.nombre}</option>
                                         ))}
