@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Save, Phone, MapPin, Shield, Check, Edit2, Search, X, UserPlus, ArrowLeft, Mail, Lock, Filter, AlertTriangle } from "lucide-react"; // Añadido AlertTriangle
-import MunicipiosAdepartamentos from '../data/municipiosAdepartamentos'; // Importamos el objeto de municipios
+import { useNavigate } from "react-router-dom";
+import { Save, Phone, MapPin, Shield, ShieldOff, Check, Edit2, Search, X,  ArrowLeft, Mail, Lock,   Info, Users } from "lucide-react";
+import MunicipiosAdepartamentos from '../data/municipiosAdepartamentos';
 
-// Definimos los tipos para TypeScript
+// ... (Los interfaces y los componentes AuthError y AccessDenied permanecen igual) ...
+
 interface Departamento {
     ID_DPTO: number;
     NOMBRE_DPTO: string;
@@ -14,11 +16,20 @@ interface Usuario {
     NOMBRE_USUARIO: string;
     APELLIDO_USUARIO: string;
     TELEFONO_USUARIO: string;
-    ROL_USUARIO: string;
+    ROL_USUARIO: string; // Este es un string (ej: "LIDER", "1", "2")
     ESTADO_USUARIO: number;
     ZONA_ASIGNADA: number;
     NOMBRE_ZONA: string;
     CORREO_USUARIO?: string;
+}
+
+interface CurrentUser {
+    id: number;
+    role: number;
+    rol_usuario: string | null; // Puede ser "LIDER", "1", "2", etc.
+    zonaAsignada: number | null;
+    nombreZona: string | null;
+    nombre: string | null;
 }
 
 interface FormState {
@@ -33,26 +44,96 @@ interface FormState {
     contrasena_usuario: string;
 }
 
-// INICIO - NUEVO COMPONENTE DE ACCESO DENEGADO
+// Componente para mostrar errores de autenticación
+const AuthError: React.FC<{ message: string }> = ({ message }) => {
+    const navigate = useNavigate();
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 max-w-md w-full text-center">
+                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-red-100 to-orange-100 mb-6">
+                    <Info className="h-10 w-10 text-red-600" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-600 mb-3">
+                    Error de Autenticación
+                </h2>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    {message}
+                </p>
+                <button 
+                    onClick={() => navigate("/Admin_gold")}
+                    className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-500 to-orange-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                    <ArrowLeft className="w-5 h-5 mr-2" /> 
+                    Ir al Inicio de Sesión
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+// Componente de Acceso Denegado (para roles no permitidos)
 const AccessDenied: React.FC = () => {
+    const navigate = useNavigate();
     const handleRedirectToDashboard = () => {
-        // Asegúrate de que esta ruta sea la correcta para tu panel principal
-        window.location.href = "/dashboard"; 
+        navigate("/Dash-Resumen-votantes"); 
+    };
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 max-w-md w-full text-center">
+                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 mb-6">
+                    <ShieldOff className="h-10 w-10 text-indigo-600" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-3">
+                    Acceso Restringido
+                </h2>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    ¡Ups! Parece que no tienes permisos para acceder a esta página. 
+                    Tu rol de usuario actual no permite ver esta sección. Si crees que esto es un error, contacta al administrador.
+                </p>
+                <button 
+                    onClick={handleRedirectToDashboard}
+                    className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                    <ArrowLeft className="w-5 h-5 mr-2" /> 
+                    Volver al Inicio
+                </button>
+            </div>
+        </div>
+    );
+}; 
+
+// Línea añadida para simular el uso del componente y eliminar el error de TypeScript
+console.log(AccessDenied); 
+
+
+
+// INICIO - NUEVO COMPONENTE PARA LÍDERES
+const LeaderView: React.FC<{ userName: string | undefined }> = ({ userName }) => {
+    const navigate = useNavigate();
+    const handleRedirectToDashboard = () => {
+        navigate("/dashboard"); 
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-            <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                    <AlertTriangle className="h-6 w-6 text-red-600" />
+        <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 max-w-md w-full text-center">
+                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-teal-100 to-blue-100 mb-6">
+                    <Users className="h-10 w-10 text-teal-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
-                <p className="text-gray-600 mb-6">No tienes los permisos necesarios para ver o gestionar usuarios.</p>
+                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600 mb-3">
+                    ¡Hola, {userName || 'Lider'}!
+                </h2>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    Tu rol como líder es fundamental para el éxito del equipo. Esta sección está destinada a la administración general de usuarios.
+                    Para gestionar a tus votantes y ver tu progreso, por favor, regresa al panel principal.
+                </p>
                 <button 
                     onClick={handleRedirectToDashboard}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-teal-500 to-blue-600 text-white font-semibold rounded-xl hover:from-teal-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
                 >
-                    <ArrowLeft className="w-5 h-5 mr-2" /> Regresar al Panel
+                    <ArrowLeft className="w-5 h-5 mr-2" /> 
+                    Ir a mi Panel
                 </button>
             </div>
         </div>
@@ -60,19 +141,54 @@ const AccessDenied: React.FC = () => {
 };
 // FIN - NUEVO COMPONENTE
 
+// Funciones para manejo del Token JWT
+const getToken = () => {
+    const token = localStorage.getItem('token');
+    console.log("Token encontrado en storage:", token ? "Sí" : "No");
+    return token;
+};
+
+const getCurrentUserInfo = (): CurrentUser | null => {
+    const token = getToken();
+    if (!token) {
+        console.error("Error de autenticación: No se encontró ningún token.");
+        return null;
+    }
+    
+    try {
+        const base64Url = token.split('.')[1];
+        if (!base64Url) {
+            throw new Error("El token no tiene un payload válido.");
+        }
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        console.log("Payload del token decodificado:", payload);
+
+        return {
+            id: payload.sub,
+            role: payload.tipo_usuario,
+            rol_usuario: payload.rol_usuario ? String(payload.rol_usuario) : null,
+            zonaAsignada: payload.zona_asignada ? Number(payload.zona_asignada) : null,
+            nombreZona: payload.nombre_zona,
+            nombre: payload.nombre || 'Usuario'
+        };
+    } catch (error) {
+        console.error('Error al decodificar el token JWT:', error);
+        return null;
+    }
+};
+
 
 const UserManagement: React.FC = () => {
-    // INICIO - VERIFICACIÓN DE ROL
-    // Obtenemos el rol del usuario desde localStorage. 
-    // Asegúrate de guardar el rol con esta clave ('usuarioRol') al iniciar sesión.
-    const rolUsuario = localStorage.getItem('usuarioRol');
-
-    // Si el rol no es '2' ni 'LIDER', mostramos el componente de acceso denegado y no renderizamos nada más.
-    if (rolUsuario !== '2' && rolUsuario !== 'LIDER') {
-        return <AccessDenied />;
-    }
-    // FIN - VERIFICACIÓN DE ROL
-
+    const navigate = useNavigate();
+    
+    // --- TODOS LOS HOOKS AL PRINCIPIO ---
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [authError, setAuthError] = useState<string | null>(null);
     const [form, setForm] = useState<FormState>({
         nombre_usuario: "",
         apellido_usuario: "",
@@ -84,51 +200,35 @@ const UserManagement: React.FC = () => {
         correo_usuario: "",
         contrasena_usuario: ""
     });
-
     const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
     const [departamentosFiltrados, setDepartamentosFiltrados] = useState<Departamento[]>([]);
     const [municipiosFiltrados, setMunicipiosFiltrados] = useState<string[]>([]);
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingDepartamentos, setLoadingDepartamentos] = useState(true);
-    // Nota: El console.log aquí es para depuración, puedes eliminarlo en producción.
-    console.log(`Filtrando : ${loadingDepartamentos}`); 
+
+    console.log(loadingDepartamentos); 
+
+    
     const [loadingUsuarios, setLoadingUsuarios] = useState(true);
     const [saved, setSaved] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    
-    const [usuarioLogueado, setUsuarioLogueado] = useState<{
-        zonaAsignada: number | null;
-        nombreZona: string | null;
-        nombre: string | null;
-    }>({
-        zonaAsignada: null,
-        nombreZona: null,
-        nombre: null
-    });
-    
-    const [mostrarSoloMiZona, setMostrarSoloMiZona] = useState(true);
+    // Estado 'mostrarSoloMiZona' eliminado, ya que ahora es el comportamiento por defecto para los roles que lo necesitan.
 
-    const handleRedirectToUsuarios = () => {
-        window.location.href = "/dashboard";
-    };
-
+    // --- LÓGICA DE EFECTOS ---
     useEffect(() => {
-        const zonaAsignada = localStorage.getItem('zonaAsignada');
-        const nombreZona = localStorage.getItem('nombreZona');
-        const nombreUsuario = localStorage.getItem('usuarioNombre');
-        
-        if (zonaAsignada && nombreZona) {
-            setUsuarioLogueado({
-                zonaAsignada: parseInt(zonaAsignada),
-                nombreZona,
-                nombre: nombreUsuario
-            });
+        console.log("useEffect de autenticación se está ejecutando...");
+        const userInfo = getCurrentUserInfo();
+        if (userInfo) {
+            console.log("Usuario autenticado:", userInfo);
+            setCurrentUser(userInfo);
+        } else {
+            console.error("La información del usuario no se pudo obtener. Mostrando error de autenticación.");
+            setAuthError("No se pudo verificar tu identidad. Por favor, inicia sesión nuevamente.");
         }
-    }, []);
+    }, [navigate]);
 
-    // Cargar todos los departamentos desde el API
     useEffect(() => {
         const fetchDepartamentos = async () => {
             try {
@@ -146,54 +246,54 @@ const UserManagement: React.FC = () => {
                 setLoadingDepartamentos(false);
             }
         };
-
         fetchDepartamentos();
     }, []);
 
-    // Filtrar departamentos según el usuario logueado
+    // <-- CAMBIO REALIZADO: Mostrar todos los departamentos si el rol es '2'
     useEffect(() => {
-        if (departamentos.length > 0 && usuarioLogueado.nombreZona) {
-            const deptoDelUsuario = departamentos.filter(
-                dpto => dpto.NOMBRE_DPTO === usuarioLogueado.nombreZona
-            );
-            setDepartamentosFiltrados(deptoDelUsuario);
+        if (departamentos.length > 0) {
+            if (currentUser?.rol_usuario === '2') {
+                // Para el rol '2', mostrar todos los departamentos
+                setDepartamentosFiltrados(departamentos);
+            } else if (currentUser?.nombreZona) {
+                // Para otros roles, mostrar solo el departamento del usuario
+                const deptoDelUsuario = departamentos.filter(
+                    dpto => dpto.NOMBRE_DPTO === currentUser.nombreZona
+                );
+                setDepartamentosFiltrados(deptoDelUsuario);
 
-            // Pre-seleccionar el departamento en el formulario si solo hay uno
-            if (deptoDelUsuario.length === 1) {
-                setForm(prev => ({ 
-                    ...prev, 
-                    dpto_asignado: deptoDelUsuario[0].ID_DPTO.toString() 
-                }));
+                if (deptoDelUsuario.length === 1) {
+                    setForm(prev => ({ 
+                        ...prev, 
+                        dpto_asignado: deptoDelUsuario[0].ID_DPTO.toString() 
+                    }));
+                }
+            } else {
+                // Si no hay rol '2' ni nombre de zona, no mostrar nada
+                setDepartamentosFiltrados([]);
             }
-        } else {
-            setDepartamentosFiltrados([]);
         }
-    }, [departamentos, usuarioLogueado.nombreZona]);
+    }, [departamentos, currentUser?.nombreZona, currentUser?.rol_usuario]);
 
-// Filtrar municipios cuando se selecciona un departamento
-useEffect(() => {
-    if (form.dpto_asignado && departamentos.length > 0) {
-        const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
-        
-        if (departamentoSeleccionado) {
-            const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
-            const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
-                .filter(([municipio, depto]) => {
-                    // Simulamos el uso de 'municipio' para evitar la advertencia de TypeScript
-                    console.log(`Filtrando  ${municipio}`); 
-                    
-                    return depto.toLowerCase().trim() === nombreDeptoNormalizado;
-                })
-                .map(([municipio]) => municipio);
+    useEffect(() => {
+        if (form.dpto_asignado && departamentos.length > 0) {
+            const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
             
-            setMunicipiosFiltrados(municipiosDelDepto);
+            if (departamentoSeleccionado) {
+                const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
+                const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
+                    .filter(([, depto]) => depto.toLowerCase().trim() === nombreDeptoNormalizado)
+                    .map(([municipio]) => municipio);
+                setMunicipiosFiltrados(municipiosDelDepto);
+                
+            } else {
+                setMunicipiosFiltrados([]);
+            }
         } else {
             setMunicipiosFiltrados([]);
         }
-    } else {
-        setMunicipiosFiltrados([]);
-    }
-}, [form.dpto_asignado, departamentos]);
+    }, [form.dpto_asignado, departamentos]);
+
     useEffect(() => {
         const fetchUsuarios = async () => {
             try {
@@ -202,7 +302,7 @@ useEffect(() => {
                 if (data?.success && Array.isArray(data.data)) {
                     setUsuarios(data.data);
                 } else {
-                    toast.error("Error al cargar los usuarios");
+                   // constant toast.error("Error al cargar los usuarios");
                 }
             } catch (error) {
                 toast.error("Error de conexión al cargar usuarios");
@@ -211,9 +311,13 @@ useEffect(() => {
                 setLoadingUsuarios(false);
             }
         };
-
         fetchUsuarios();
     }, []);
+    
+    // --- LÓGICA DE MANEJADORES Y FUNCIONES ---
+    const handleRedirectToUsuarios = () => {
+        navigate("/dashboard");
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -228,9 +332,7 @@ useEffect(() => {
     };
 
     const handleEdit = (usuario: Usuario) => {
-        // Al editar, buscamos el ID del departamento que coincide con el nombre de la zona del usuario
         const deptoId = departamentos.find(d => d.NOMBRE_DPTO === usuario.NOMBRE_ZONA)?.ID_DPTO.toString() || "";
-
         setForm({
             nombre_usuario: usuario.NOMBRE_USUARIO,
             apellido_usuario: usuario.APELLIDO_USUARIO,
@@ -246,7 +348,6 @@ useEffect(() => {
     };
 
     const resetForm = () => {
-        // Al resetear, volvemos a poner el departamento por defecto (el del usuario logueado)
         const defaultDeptoId = departamentosFiltrados.length > 0 ? departamentosFiltrados[0].ID_DPTO.toString() : "";
         setForm({
             nombre_usuario: "",
@@ -308,28 +409,57 @@ useEffect(() => {
         }
     };
 
-    const filteredUsuarios = usuarios.filter(usuario => {
-        const nombre = usuario.NOMBRE_USUARIO || "";
-        const apellido = usuario.APELLIDO_USUARIO || "";
-        const telefono = usuario.TELEFONO_USUARIO || "";
-        const rol = usuario.ROL_USUARIO || "";
-        const matchesSearch = (
-            nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            telefono.includes(searchTerm) ||
-            rol.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        const matchesZona = !mostrarSoloMiZona || 
-                          !usuarioLogueado.zonaAsignada || 
-                          usuario.ZONA_ASIGNADA === usuarioLogueado.zonaAsignada;
-        
-        // Nueva condición: excluir a los usuarios con rol '2'
-        const isNotRoleTwo = usuario.ROL_USUARIO !== '2';
-        
-        // Se añade la nueva condición al filtro final
-        return matchesSearch && matchesZona && isNotRoleTwo;
-    });
+    // --- MODIFICACIÓN PRINCIPAL AQUÍ ---
+    const filteredUsuarios = useMemo(() => {
+        let usuariosFiltradosPorRol = usuarios;
 
+        // Caso 1: Super Admin (rol '2')
+        if (currentUser?.rol_usuario === '2') {
+            // El Super Admin ve a todos los usuarios. No se necesita filtrar por zona ni rol.
+        }
+        // Caso 2: Cualquier otro rol que tenga una zona asignada (incluye al rol '1')
+        else if (currentUser?.zonaAsignada) {
+            // El Admin de Departamento y otros roles ven solo a la gente de su zona asignada.
+            usuariosFiltradosPorRol = usuarios.filter(u => u.ZONA_ASIGNADA === currentUser.zonaAsignada);
+        } else {
+            // Si el usuario no tiene zona asignada (y no es Super Admin), no ve nada.
+            usuariosFiltradosPorRol = [];
+        }
+
+        // --- NUEVO: Siempre excluir a los Super Admins (ROL_USUARIO === '2') de la lista visible ---
+        usuariosFiltradosPorRol = usuariosFiltradosPorRol.filter(u => u.ROL_USUARIO !== '2');
+
+        // Aplicar el filtro de búsqueda sobre el resultado anterior
+        return usuariosFiltradosPorRol.filter(usuario => {
+            const nombre = usuario.NOMBRE_USUARIO || "";
+            const apellido = usuario.APELLIDO_USUARIO || "";
+            const telefono = usuario.TELEFONO_USUARIO || "";
+            const rol = usuario.ROL_USUARIO || "";
+            return (
+                nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                telefono.includes(searchTerm) ||
+                rol.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        });
+    }, [usuarios, currentUser, searchTerm]);
+
+
+    // --- RENDERIZADO CONDICIONAL AL FINAL ---
+    if (authError) {
+        return <AuthError message={authError} />;
+    }
+
+    if (currentUser === null) {
+        return <div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+    }
+
+     // <-- CORRECCIÓN: Mostrar vista específica para LÍDERES
+    if (currentUser.rol_usuario === 'LIDER') {
+        return <LeaderView userName={currentUser.nombre || undefined} />;
+    }
+
+    // RENDERIZADO PRINCIPAL: Solo para roles permitidos (ej. Administradores)
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
@@ -339,43 +469,29 @@ useEffect(() => {
                         <button onClick={handleRedirectToUsuarios} className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                             <ArrowLeft className="w-5 h-5 mr-2" /> Regresar
                         </button>
-                        <button onClick={handleRedirectToUsuarios} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                            <UserPlus className="w-5 h-5 mr-2" /> Registrar Votante
-                        </button>
+                    
                     </div>
                 </div>
 
-                {/* Información del usuario logueado */}
-                {usuarioLogueado.nombre && (
-                    <div className="bg-white rounded-lg shadow-md p-4 mb-6 hidden">
+                {currentUser.nombre && (
+                    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <div className="mr-4">
                                     <p className="text-sm text-gray-500">Usuario actual</p>
-                                    <p className="text-lg font-semibold text-gray-800">{usuarioLogueado.nombre}</p>
+                                    <p className="text-lg font-semibold text-gray-800">{currentUser.nombre}</p>
                                 </div>
                                 <div className="mr-4">
                                     <p className="text-sm text-gray-500">Zona asignada</p>
-                                    <p className="text-lg font-semibold text-gray-800">{usuarioLogueado.nombreZona}</p>
+                                    <p className="text-lg font-semibold text-gray-800">{currentUser.nombreZona}</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setMostrarSoloMiZona(!mostrarSoloMiZona)}
-                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                                    mostrarSoloMiZona 
-                                    ? "bg-blue-600 text-white hover:bg-blue-700" 
-                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                }`}
-                            >
-                                <Filter className="w-4 h-4 mr-2" />
-                                {mostrarSoloMiZona ? "Mostrando solo mi zona" : "Mostrando todas las zonas"}
-                            </button>
+                            {/* El botón de filtro ya no es necesario para ningún rol */}
                         </div>
                     </div>
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Formulario a la izquierda */}
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-semibold text-gray-800">{editingId ? "Editar Usuario" : "Registrar Nuevo Usuario"}</h2>
@@ -398,14 +514,13 @@ useEffect(() => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                                <div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Shield className="w-4 h-4 text-gray-400" /></div><select name="rol_usuario" value={form.rol_usuario} onChange={handleChange} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"><option value="">Seleccionar rol</option><option value="LIDER">Lider</option></select><div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div></div>
+                                <div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Shield className="w-4 h-4 text-gray-400" /></div><select name="rol_usuario" value={form.rol_usuario} onChange={handleChange} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"><option value="">Seleccionar rol</option><option value="LIDER">Lider</option>{/* <-- CAMBIO REALIZADO */}{(currentUser.rol_usuario === '1' || currentUser.rol_usuario === '2') && <option value="1">Lider Departamento</option>}</select><div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div></div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                                 <div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Check className="w-4 h-4 text-gray-400" /></div><select name="estado_usuario" value={form.estado_usuario} onChange={handleChange} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"><option value="1">Activo</option><option value="0">Inactivo</option></select><div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-9"></path></svg></div></div>
                             </div>
                             
-                            {/* Select de Departamento Filtrado */}
                             {departamentosFiltrados.length > 0 && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
@@ -428,7 +543,7 @@ useEffect(() => {
                                             <option value="">{!form.dpto_asignado ? "Seleccione primero un departamento" : municipiosFiltrados.length === 0 ? "No hay municipios disponibles para este depto." : "Seleccionar municipio"}</option>
                                             {municipiosFiltrados.map(municipio => (<option key={municipio} value={municipio}>{municipio}</option>))}
                                         </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-9"></path></svg></div>
                                     </div>
                                 </div>
                             )}
@@ -447,13 +562,12 @@ useEffect(() => {
                         </form>
                     </div>
 
-                    {/* Tabla de usuarios a la derecha */}
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-semibold text-gray-800">Usuarios Registrados {mostrarSoloMiZona && usuarioLogueado.nombreZona && (<span className="text-sm font-normal text-gray-500 ml-2">({usuarioLogueado.nombreZona})</span>)}</h2>
+                            <h2 className="text-xl font-semibold text-gray-800">Usuarios Registrados</h2>
                             <div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="w-4 h-4 text-gray-400" /></div><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar usuarios..." className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
                         </div>
-                        {loadingUsuarios ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>) : (<div className="overflow-x-auto"><table className="w-full"><thead><tr className="border-b border-gray-200"><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Nombre</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Teléfono</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Rol</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Estado</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Zona</th><th className="text-center py-2 px-2 text-sm font-medium text-gray-700">Acciones</th></tr></thead><tbody>{filteredUsuarios.length === 0 ? (<tr><td colSpan={6} className="text-center py-8 text-gray-500">{mostrarSoloMiZona ? "No se encontraron usuarios en tu zona" : "No se encontraron usuarios"}</td></tr>) : (filteredUsuarios.map(usuario => (<tr key={usuario.ID_USUARIO} className="border-b border-gray-100 hover:bg-gray-50"><td className="py-3 px-2"><div><div className="text-sm font-medium text-gray-900">{usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}</div></div></td><td className="py-3 px-2 text-sm text-gray-700">{usuario.TELEFONO_USUARIO}</td><td className="py-3 px-2 text-sm text-gray-700">{usuario.ROL_USUARIO}</td><td className="py-3 px-2"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${usuario.ESTADO_USUARIO === 1 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{usuario.ESTADO_USUARIO === 1 ? "Activo" : "Inactivo"}</span></td><td className="py-3 px-2 text-sm text-gray-700">{usuario.NOMBRE_ZONA}</td><td className="py-3 px-2"><div className="flex justify-center space-x-1"><button onClick={() => handleEdit(usuario)} className="p-1 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors" title="Editar"><Edit2 className="w-4 h-4 text-blue-600" /></button></div></td></tr>)))}</tbody></table></div>)}
+                        {loadingUsuarios ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>) : (<div className="overflow-x-auto"><table className="w-full"><thead><tr className="border-b border-gray-200"><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Nombre</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Teléfono</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Rol</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Estado</th><th className="text-left py-2 px-2 text-sm font-medium text-gray-700">Zona</th><th className="text-center py-2 px-2 text-sm font-medium text-gray-700">Acciones</th></tr></thead><tbody>{filteredUsuarios.length === 0 ? (<tr><td colSpan={6} className="text-center py-8 text-gray-500">No se encontraron usuarios</td></tr>) : (filteredUsuarios.map(usuario => (<tr key={usuario.ID_USUARIO} className="border-b border-gray-100 hover:bg-gray-50"><td className="py-3 px-2"><div><div className="text-sm font-medium text-gray-900">{usuario.NOMBRE_USUARIO} {usuario.APELLIDO_USUARIO}</div></div></td><td className="py-3 px-2 text-sm text-gray-700">{usuario.TELEFONO_USUARIO}</td>{/* --- CAMBIO AQUÍ: Mostrar "Lider Departamento" para el rol '1' --- */}<td className="py-3 px-2 text-sm text-gray-700">{usuario.ROL_USUARIO === '1' ? 'Lider Departamento' : usuario.ROL_USUARIO}</td><td className="py-3 px-2"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${usuario.ESTADO_USUARIO === 1 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{usuario.ESTADO_USUARIO === 1 ? "Activo" : "Inactivo"}</span></td><td className="py-3 px-2 text-sm text-gray-700">{usuario.NOMBRE_ZONA}</td><td className="py-3 px-2"><div className="flex justify-center space-x-1"><button onClick={() => handleEdit(usuario)} className="p-1 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors" title="Editar"><Edit2 className="w-4 h-4 text-blue-600" /></button></div></td></tr>)))}</tbody></table></div>)}
                     </div>
                 </div>
             </div>

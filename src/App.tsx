@@ -12,6 +12,11 @@ import ZoneManagement from './pages/ZoneManagement';
 import OrganizationalDashboard from './pages/OrganizationalDashboard';
 import VoterMapView from './pages/VoterMapView';
 import VotanteManagement from './pages/VotanteManagement';
+import ReportesView from './pages/ReportesView';
+import ReporteCamara from './pages/ReporteCamara';
+
+
+
 
 import { Toaster } from 'sonner';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -27,15 +32,25 @@ const App: React.FC = () => {
 
         {/* RUTAS PROTEGIDAS */}
         <Route path="/" element={<ProtectedRoute><DashboardVotantesResumen /></ProtectedRoute>} />
-        <Route path="/DashboardVotantesResumen" element={<ProtectedRoute><DashboardVotantesResumen /></ProtectedRoute>} />
+
+        <Route path="/Dash-Resumen-votantes" element={<ProtectedRoute><DashboardVotantesResumen /></ProtectedRoute>} />
+
+
+
         <Route path="/Usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
         <Route path="/Departamentos" element={<ProtectedRoute><DepartmentManagement /></ProtectedRoute>} />
         <Route path="/Minicipios" element={<ProtectedRoute><MunicipalityManagement /></ProtectedRoute>} />
         <Route path="/Zonas" element={<ProtectedRoute><ZoneManagement /></ProtectedRoute>} />
         <Route path="/Organizacion" element={<ProtectedRoute><OrganizationalDashboard /></ProtectedRoute>} />
         <Route path="/Mapa" element={<ProtectedRoute><VoterMapView /></ProtectedRoute>} />
-        <Route path="/VotanteManagement" element={<ProtectedRoute><VotanteManagement /></ProtectedRoute>} />
+        <Route path="/Promover-usuarios" element={<ProtectedRoute><VotanteManagement /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/reporte-camara" element={<ProtectedRoute><ReporteCamara /></ProtectedRoute>} />
+
+        
+        
+        
+        <Route path="/Reporte" element={<ProtectedRoute><ReportesView /></ProtectedRoute>} />
       </Routes>
     </>
   );

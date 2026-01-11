@@ -147,17 +147,17 @@ const VotanteManagement: React.FC = () => {
 
             setLoadingVotantes(true);
             try {
-                let url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                let url = `https://devsoul.co/api_votantes/votantes_list_promover.php?t=${Date.now()}`;
                 
                 if (currentUser.role === 1) {
                     // Administrador: ve todos los votantes
-                    url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                    url = `https://devsoul.co/api_votantes/votantes_list_promover.php?t=${Date.now()}`;
                 } else if (currentUser.rol_usuario === 2) {
                     // Líder de departamento: ve todos los votantes de su departamento
-                    url = `https://devsoul.co/api_votantes/votantes_list.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
+                    url = `https://devsoul.co/api_votantes/votantes_list_promover.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
                 } else {
                     // Todos los demás roles (incluyendo rol_usuario = 0): ven solo los votantes que han creado
-                    url = `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`;
+                    url = `https://devsoul.co/api_votantes/votantes_list_promover.php?usuario=${currentUser.id}&t=${Date.now()}`;
                 }
                 
                 const response = await fetch(url);
@@ -244,7 +244,7 @@ const VotanteManagement: React.FC = () => {
         setLoadingSave(true);
 
         try {
-            const response = await fetch("https://devsoul.co/api_votantes/usuario_create.php", {
+            const response = await fetch("https://devsoul.co/api_votantes/promover.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(form),
@@ -264,14 +264,14 @@ const VotanteManagement: React.FC = () => {
                 const fetchVotantes = async () => {
                     if (!currentUser) return;
                     
-                    let url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                    let url = `https://devsoul.co/api_votantes/votantes_list_promover.php?t=${Date.now()}`;
                     
                     if (currentUser.role === 1) {
-                        url = `https://devsoul.co/api_votantes/votantes_list.php?t=${Date.now()}`;
+                        url = `https://devsoul.co/api_votantes/votantes_list_promover.php?t=${Date.now()}`;
                     } else if (currentUser.rol_usuario === 2) {
-                        url = `https://devsoul.co/api_votantes/votantes_list.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
+                        url = `https://devsoul.co/api_votantes/votantes_list_promover.php?nombre_zona=${encodeURIComponent(currentUser.nombre_zona || '')}&t=${Date.now()}`;
                     } else {
-                        url = `https://devsoul.co/api_votantes/votantes_list.php?usuario=${currentUser.id}&t=${Date.now()}`;
+                        url = `https://devsoul.co/api_votantes/votantes_list_promover.php?usuario=${currentUser.id}&t=${Date.now()}`;
                     }
                     
                     const response = await fetch(url);

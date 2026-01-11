@@ -3,20 +3,33 @@ import { toast } from "sonner";
 import { Loader2, BarChart3, X, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-// Leaflet global
+
 declare global {
   interface Window { L: any; }
 }
 declare var L: any;
 
-// --- Tipos ---
 interface MpioData {
   MUNICIPIO: string;
   DEPARTAMENTO: string;
   TOTAL: number;
 }
 
-// --- SOLUCIÓN: Coordenadas con claves en MAYÚSCULAS ---
+type UserInfoFromToken = {
+  sub: number;
+  nombre: string;
+  rol_usuario: "LIDER" | "1" | "2";
+  zona_asignada: number;
+  nombre_zona: string;
+  iat: number;
+  exp: number;
+};
+
+
+
+
+
+
 const municipalityCoordinates: { [key: string]: [number, number] } = {
   // AMAZONAS
   "ZARAGOZA": [-4.2153, -69.9406],
@@ -1107,16 +1120,51 @@ const normalize = (s: string) => {
     .toUpperCase();
 };
 
+// --- LÓGICA DE AUTENTICACIÓN (COPIADA DEL DASHBOARD) ---
+const getToken = () => {
+  return localStorage.getItem('token') || getCookie('token');
+};
+
+const getCookie = (name: string) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return null;
+};
+
+const getCurrentUserInfo = (): UserInfoFromToken | null => {
+  const token = getToken();
+  if (!token) return null;
+  
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    
+    const payload = JSON.parse(jsonPayload);
+    return payload;
+  } catch (error) {
+    console.error('Error al decodificar el token JWT:', error);
+    return null;
+  }
+};
+
+
 const VoterMapByDepartment: React.FC = () => {
   const [municipalityData, setMunicipalityData] = useState<MpioData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeMunicipioKey, setActiveMunicipioKey] = useState<string | null>(null);
+  
+  // --- NUEVO ESTADO PARA EL USUARIO ACTUAL ---
+  const [currentUser, setCurrentUser] = useState<UserInfoFromToken | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<Record<string, any>>({}); // por nombre normalizado
+  const markersRef = useRef<Record<string, any>>({});
 
   // Carga CSS/JS de Leaflet
   const loadLeafletAssets = () => {
@@ -1150,20 +1198,61 @@ const VoterMapByDepartment: React.FC = () => {
     return Promise.all([ensureCss(), ensureJs()]);
   };
 
+
   useEffect(() => {
+    const userInfo = getCurrentUserInfo();
+    if (userInfo) {
+      setCurrentUser(userInfo);
+    } else {
+      // Opcional: redirigir al login si no hay token
+      toast.error("No se encontró el token de autenticación.");
+      setError("No se encontró el token de autenticación.");
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+
+    if (!currentUser) return;
+
     const initializeMap = async () => {
       try {
         await loadLeafletAssets();
 
-        // ✅ Usa el API de MUNICIPIOS
+  
+        const params = new URLSearchParams();
+        params.set("_t", String(Date.now()));
+        
+    
+        if (currentUser.rol_usuario === "LIDER" || currentUser.rol_usuario === "1") {
+          params.set("id_usuario", String(currentUser.sub));
+        }
+
         const response = await fetch(
-          "https://devsoul.co/api_votantes/votantes_por_municipio.php?_t=" + Date.now()
+          `https://devsoul.co/api_votantes/votante_mapa.php?${params.toString()}`
         );
         const result = await response.json();
         if (!result?.success) throw new Error(result.message || "Error al cargar datos del mapa");
 
-        const incoming: MpioData[] = result.data || [];
-        setMunicipalityData(incoming);
+        const incomingAssignments: any[] = result.data || [];
+
+     
+        const aggregatedMap = new Map<string, MpioData>();
+        incomingAssignments.forEach((assignment) => {
+          const key = normalize(assignment.MUNICIPIO);
+          if (aggregatedMap.has(key)) {
+            const existing = aggregatedMap.get(key)!;
+            existing.TOTAL += 1;
+          } else {
+            aggregatedMap.set(key, {
+              MUNICIPIO: assignment.MUNICIPIO,
+              DEPARTAMENTO: assignment.DEPARTAMENTO,
+              TOTAL: 1,
+            });
+          }
+        });
+        const processedData: MpioData[] = Array.from(aggregatedMap.values());
+        setMunicipalityData(processedData);
 
         setTimeout(() => {
           if (mapRef.current && window.L) {
@@ -1175,7 +1264,6 @@ const VoterMapByDepartment: React.FC = () => {
             setTimeout(() => map.invalidateSize(), 200);
             mapInstanceRef.current = map;
 
-            // Icono personalizado para municipios
             const createCustomIcon = (mpio: MpioData) => {
               return L.divIcon({
                 className: "custom-marker",
@@ -1195,8 +1283,7 @@ const VoterMapByDepartment: React.FC = () => {
               });
             };
 
-            // Marcadores (solo > 0) y por clave normalizada
-            incoming
+            processedData
               .filter((d) => d.TOTAL > 0)
               .forEach((mpio) => {
                 const key = normalize(mpio.MUNICIPIO);
@@ -1216,7 +1303,7 @@ const VoterMapByDepartment: React.FC = () => {
                         <span class="text-gray-800 font-semibold">${mpio.DEPARTAMENTO}</span>
                       </p>
                       <p class="flex items-center justify-between">
-                        <span class="font-medium text-gray-600">Votantes:</span>
+                        <span class="font-medium text-gray-600">Votantes Asignados:</span>
                         <span class="text-indigo-600 font-bold text-lg">${mpio.TOTAL}</span>
                       </p>
                     </div>
@@ -1244,7 +1331,7 @@ const VoterMapByDepartment: React.FC = () => {
     return () => {
       if (mapInstanceRef.current) mapInstanceRef.current.remove();
     };
-  }, []);
+  }, [currentUser]); // El efecto ahora depende de `currentUser`
 
   // Foco por municipio
   const focusOnMunicipality = (mpio: MpioData) => {
@@ -1308,7 +1395,7 @@ const VoterMapByDepartment: React.FC = () => {
               <p className="text-2xl font-bold text-indigo-800">{totalMpios}</p>
             </div>
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <p className="text-gray-600 text-xs font-medium">Total Votantes</p>
+              <p className="text-gray-600 text-xs font-medium">Total Asignaciones</p>
               <p className="text-2xl font-bold text-gray-800">{totalVoters}</p>
             </div>
           </div>
@@ -1316,7 +1403,12 @@ const VoterMapByDepartment: React.FC = () => {
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Lista de Municipios</h3>
             <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
               {listData.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-6">No hay municipios con votantes registrados.</p>
+                <p className="text-sm text-gray-500 text-center py-6">
+                  {/* --- CAMBIO: Mensaje condicional --- */}
+                  {currentUser?.rol_usuario === "LIDER" || currentUser?.rol_usuario === "1"
+                    ? "No tiene votantes asignados."
+                    : "No hay municipios con votantes registrados."}
+                </p>
               ) : (
                 listData.map((mpio) => {
                   const key = normalize(mpio.MUNICIPIO);
@@ -1350,8 +1442,16 @@ const VoterMapByDepartment: React.FC = () => {
               <ChevronLeft className="w-6 h-6 text-gray-700" />
             </button>
           )}
-          <h1 className="text-2xl font-bold text-white">Mapa de Votantes por Municipio</h1>
+          {/* --- CAMBIO: Título dinámico --- */}
+          <h1 className="text-2xl font-bold text-white">
+            {currentUser?.rol_usuario === "LIDER" || currentUser?.rol_usuario === "1"
+              ? `Mapa de Votantes Asignados a ${currentUser.nombre}`
+              : "Mapa de Votantes por Municipio"}
+          </h1>
           <p className="text-sm text-blue-100">Explora los municipios y haz clic en los marcadores para ver detalles.</p>
+          {currentUser && (currentUser.rol_usuario === "LIDER" || currentUser.rol_usuario === "1") && (
+            <p className="text-xs text-blue-200 mt-1">Viendo únicamente los votantes asignados a su usuario.</p>
+          )}
         </div>
         <div ref={mapRef} className="w-full h-full" style={{ marginTop: "80px" }} />
       </div>

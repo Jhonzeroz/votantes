@@ -64,15 +64,13 @@ const initialForm = {
   apellido2: "",
   telefono: "",
   direccion: "",
-  // CAMBIADO: Ahora id_zona_asignada contendrá el ID del departamento
   id_zona_asignada: "",
   id_usuario_asignado: "",
-  // NUEVOS CAMPOS
-  puesto: "",
+  mesa: "", // Changed from puesto to mesa
   lugar_votacion: "",
-  municipio: "", // Agregamos campo explícito para el municipio
-  // 'dpto_asignado' es un campo de UI para filtrar los municipios. No se envía al backend.
+  municipio: "",
   dpto_asignado: "",
+  tipo_voto: "SENADO_Y_CAMARA", // Valor por defecto en lugar de cadena vacía
 };
 
 const tiposDoc = [
@@ -184,23 +182,26 @@ const VotantesView: React.FC<VotantesViewProps> = ({
   }, [allVotantes, usuariosState]);
 
   // 2. Filtrado de datos basado en los filtros seleccionados
-  const datosFiltrados = useMemo(() => {
-    let filtered = allVotantes;
+ const datosFiltrados = useMemo(() => {
+  let filtered = allVotantes;
 
-    if (q) {
-      const lowerCaseQuery = q.toLowerCase();
-      filtered = filtered.filter(votante =>
-        votante.NUM_DOC.includes(q) ||
-        votante.NOMBRE_COMPLETO.toLowerCase().includes(lowerCaseQuery)
+  if (q) {
+    const lowerCaseQuery = q.toLowerCase();
+    filtered = filtered.filter(votante => {
+      if (!votante) return false;
+      return (votante.NUM_DOC && votante.NUM_DOC.includes(q)) ||
+             (votante.NOMBRE_COMPLETO && votante.NOMBRE_COMPLETO.toLowerCase().includes(lowerCaseQuery));
+    });
+  }
+
+  if (fZona) {
+    const zonaSeleccionada = zonasState.find(z => String(z.id) === fZona);
+    if (zonaSeleccionada) {
+      filtered = filtered.filter(votante => 
+        votante && votante.ZONA_NOMBRE === zonaSeleccionada.nombre
       );
     }
-
-    if (fZona) {
-      const zonaSeleccionada = zonasState.find(z => String(z.id) === fZona);
-      if (zonaSeleccionada) {
-        filtered = filtered.filter(votante => votante.ZONA_NOMBRE === zonaSeleccionada.nombre);
-      }
-    }
+  }
     
     // El filtro de usuario solo aplica para administradores
     if (currentUser && currentUser.role === 1 && fUsuario) {
@@ -215,7 +216,7 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     }
 
     return filtered;
-  }, [allVotantes, q, fZona, fUsuario, fMesa, currentUser, zonasState, usuariosState]);
+ }, [allVotantes, q, fZona, fUsuario, fMesa, currentUser, zonasState, usuariosState]);
 
   // 3. Calcular resultados paginados a partir de los datos filtrados
   const resultadosPaginados = useMemo(() => {
@@ -299,34 +300,55 @@ const VotantesView: React.FC<VotantesViewProps> = ({
     loadCombos();
   }, [APIVOT, zonas, usuarios]);
 
-  // Efecto para filtrar municipios según el departamento seleccionado
-useEffect(() => {
-    if (form.dpto_asignado && departamentos.length > 0) {
-      const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
-      
-      if (departamentoSeleccionado) {
-        const nombreDeptoNormalizado = departamentoSeleccionado.NOMBRE_DPTO.toLowerCase().trim();
 
-        const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
-          .filter(([municipio, depto]) => {
-            // Simulamos el uso de la variable 'municipio' para evitar la advertencia
-            console.log(`Filtrando municipio: ${municipio}`); 
-            
-            return depto.toLowerCase().trim() === nombreDeptoNormalizado;
-          })
-          .map(([municipio]) => municipio);
-        
-        setMunicipiosFiltrados(municipiosDelDepto);
-      } else {
-        setMunicipiosFiltrados([]);
+  useEffect(() => {
+  if (form.dpto_asignado && departamentos.length > 0) {
+    const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
+    
+    if (departamentoSeleccionado) {
+      // Función para normalizar strings (quitar tildes, pasar a minúsculas y quitar espacios)
+    const normalizeString = (str: string) => {
+  if (!str || typeof str !== 'string') return "";
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+};
+      const nombreDeptoNormalizado = normalizeString(departamentoSeleccionado.NOMBRE_DPTO);
+
+      const municipiosDelDepto = Object.entries(MunicipiosAdepartamentos)
+        .filter(([municipio, depto]) => {
+           console.log(municipio); 
+          return normalizeString(depto) === nombreDeptoNormalizado;
+        })
+        .map(([municipio]) => municipio);
+      
+      setMunicipiosFiltrados(municipiosDelDepto);
+      
+      // Asegurar que tipo_voto tenga un valor por defecto si el departamento lo requiere
+      const departamentosRequeridos = ["NARINO", "CUNDINAMARCA", "ANTIOQUIA", "META"];
+      if (departamentosRequeridos.includes(departamentoSeleccionado.NOMBRE_DPTO) && !form.tipo_voto) {
+        setForm(prevForm => ({
+          ...prevForm,
+          tipo_voto: "SENADO_Y_CAMARA"
+        }));
       }
     } else {
       setMunicipiosFiltrados([]);
     }
+  } else {
+    setMunicipiosFiltrados([]);
+  }
+}, [form.dpto_asignado, departamentos]);
+
+
+
+  // Lógica para mostrar el campo de tipo de voto
+  const mostrarCampoTipoVoto = useMemo(() => {
+    if (!form.dpto_asignado || departamentos.length === 0) return false;
+    const departamentoSeleccionado = departamentos.find(dpto => dpto.ID_DPTO.toString() === form.dpto_asignado);
+    if (!departamentoSeleccionado) return false;
+    
+    const departamentosRequeridos = ["NARINO", "CUNDINAMARCA", "ANTIOQUIA", "META"];
+    return departamentosRequeridos.includes(departamentoSeleccionado.NOMBRE_DPTO);
   }, [form.dpto_asignado, departamentos]);
-
-
-
 
   // NUEVA FUNCIÓN: Cargar todos los votantes (datos maestros)
 const fetchAllVotantesData = async () => {
@@ -337,21 +359,17 @@ const fetchAllVotantesData = async () => {
     // Determinar los parámetros según el rol del usuario
     if (currentUser) {
       if (currentUser.role === 1) {
-        // Administrador: ve todos los votantes
         url = `${APIVOT}/votantes_list.php?limit=10`;
       } else if (currentUser.rol_usuario === 2 || currentUser.rol_usuario === 0) {
-        // Líder de departamento: ve solo los votantes de su zona
-        // Usamos nombreZona en lugar de zonaAsignada
         url = `${APIVOT}/votantes_list.php?limit=10&nombre_zona=${encodeURIComponent(currentUser.nombreZona || '')}`;
       } else {
-        // Otros roles: ve solo sus votantes asignados
         url = `${APIVOT}/votantes_list.php?limit=10&usuario=${currentUser.id}`;
       }
     }
       
     const res = await fetch(url).then((r) => r.json());
-    if (res?.success) {
-      setAllVotantes(res.data || []);
+    if (res?.success && Array.isArray(res.data)) {
+      setAllVotantes(res.data);
     } else {
       toast.error(res?.error || "No se pudieron cargar los votantes");
       setAllVotantes([]);
@@ -364,7 +382,6 @@ const fetchAllVotantesData = async () => {
     setLoadingVotantes(false);
   }
 };
-
 // Cargar últimos ingresos (10)
 const fetchUltimos = async () => {
   setLoadingUltimos(true);
@@ -397,8 +414,6 @@ const fetchUltimos = async () => {
   }
 };
 
-
-
   // Cargar datos maestros y últimos ingresos al montar o cuando cambia el usuario
   useEffect(() => {
     if (currentUser) {
@@ -416,13 +431,13 @@ const fetchUltimos = async () => {
     setForm((prev) => {
       const newForm = { ...prev, [name]: value };
       
-      // CAMBIADO: Si cambia el departamento, actualizamos id_zona_asignada
       if (name === 'dpto_asignado') {
-        newForm.id_zona_asignada = value; // El ID del departamento
-        newForm.municipio = ""; // Limpiamos el municipio
+        newForm.id_zona_asignada = value;
+        newForm.municipio = "";
+        // Limpiar el campo de tipo de voto si se cambia de departamento
+        newForm.tipo_voto = "";
       }
       
-      // Si cambia el municipio, lo guardamos en el campo municipio
       if (name === 'municipio') {
         newForm.municipio = value;
       }
@@ -433,45 +448,45 @@ const fetchUltimos = async () => {
 
   const resetForm = () => setForm(initialForm);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // CAMBIADO: Ahora validamos id_zona_asignada (departamento) y municipio
-    if (!form.id_zona_asignada || !form.municipio || !form.id_usuario_asignado) {
-      return toast.warning("Selecciona un departamento, municipio y usuario asignado");
-    }
-    if (!form.num_doc || !form.nombre1 || !form.apellido1) {
-      return toast.warning(
-        "Documento, primer nombre y primer apellido son obligatorios"
-      );
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!form.id_zona_asignada || !form.municipio || !form.id_usuario_asignado) {
+    return toast.warning("Selecciona un departamento, municipio y usuario asignado");
+  }
+  // Validar que el campo de tipo de voto esté lleno si es visible
+  if (mostrarCampoTipoVoto && !form.tipo_voto) {
+    return toast.warning("Por favor, selecciona el tipo de voto");
+  }
+  if (!form.num_doc || !form.nombre1 || !form.apellido1) {
+    return toast.warning(
+      "Documento, primer nombre y primer apellido son obligatorios"
+    );
+  }
 
-    setSaving(true);
-    try {
-      // El objeto 'form' se envía como URLSearchParams.
-      // Ahora id_zona_asignada contiene el ID del departamento
-      // y municipio contiene el nombre del municipio
-      const res = await fetch(`${APIVOT}/votante_create.php`, {
-        method: "POST",
-        body: new URLSearchParams(form as any),
-      }).then((r) => r.json());
+  setSaving(true);
+  try {
+    const res = await fetch(`${APIVOT}/votante_create.php`, {
+      method: "POST",
+      body: new URLSearchParams(form as any),
+    }).then((r) => r.json());
 
-      if (res?.success) {
-        toast.success("Votante guardado ✅");
-        resetForm();
-        fetchUltimos();
-        // Actualizar la lista maestra para que incluya el nuevo votante
-        await fetchAllVotantesData();
-      } else {
-        toast.error(res?.message || res?.error || "No se pudo guardar");
-      }
-    } catch {
-      toast.error("Error de red");
-    } finally {
-      setSaving(false);
+    if (res?.success) {
+      toast.success("Votante guardado ✅");
+      resetForm();
+      fetchUltimos();
+      await fetchAllVotantesData();
+      
+      window.location.reload();
+    } else {
+      toast.error(res?.message || res?.error || "No se pudo guardar");
     }
-  };
+  } catch {
+    toast.error("Error de red");
+  } finally {
+    setSaving(false);
+  }
+};
 
-  // Función para exportar a Excel ahora usa los datos filtrados
   const descargarExcel = async () => {
     setExportandoExcel(true);
     try {
@@ -489,6 +504,9 @@ const fetchUltimos = async () => {
         'Nombre Completo': votante.NOMBRE_COMPLETO,
         'Departamento': votante.ZONA_NOMBRE,
         'Municipio': votante.MUNICIPIO,
+        'Mesa': votante.MESA,
+        'Puesto': votante.PUESTO,
+        'Lugar de Votación': votante.LUGAR_VOTACION,
         'Usuario Asignado': votante.USUARIO_NOMBRE,
         'Fecha de Registro': votante.CREADO_EN
       }));
@@ -561,7 +579,7 @@ const fetchUltimos = async () => {
         worksheetResumen['A' + (currentRow + 1)].s = userTitleStyle;
         currentRow++;
 
-        const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'DEPARTAMENTO', 'MUNICIPIO', 'FECHA DE REGISTRO'];
+        const detailHeaders = ['DOCUMENTO', 'NOMBRE COMPLETO', 'DEPARTAMENTO', 'MUNICIPIO', 'MESA', 'PUESTO', 'LUGAR DE VOTACIÓN', 'FECHA DE REGISTRO'];
         XLSX.utils.sheet_add_aoa(worksheetResumen, [detailHeaders], { origin: `A${currentRow + 1}` });
         
         detailHeaders.forEach((_, colIndex) => {
@@ -572,7 +590,7 @@ const fetchUltimos = async () => {
         currentRow++;
 
         const voterData = votantesDelUsuario.map(v => [
-          v.NUM_DOC, v.NOMBRE_COMPLETO, v.ZONA_NOMBRE, v.MUNICIPIO, v.CREADO_EN
+          v.NUM_DOC, v.NOMBRE_COMPLETO, v.ZONA_NOMBRE, v.MUNICIPIO, v.MESA, v.PUESTO, v.LUGAR_VOTACION, v.CREADO_EN
         ]);
         XLSX.utils.sheet_add_aoa(worksheetResumen, voterData, { origin: `A${currentRow + 1}` });
         currentRow += votantesDelUsuario.length;
@@ -596,8 +614,9 @@ const fetchUltimos = async () => {
         { wch: 35 },
         { wch: 20 },
         { wch: 25 },
+        { wch: 15 },
         { wch: 20 },
-        { wch: 20 },
+        { wch: 30 },
         { wch: 20 },
       ];
 
@@ -647,6 +666,15 @@ const fetchUltimos = async () => {
     }
   }, [currentUser, usuariosFiltrados]);
 
+  // Generar opciones de mesa del 1 al 100
+  const opcionesMesa = useMemo(() => {
+    const options = [{ value: "", label: "Seleccionar mesa" }];
+    for (let i = 1; i <= 100; i++) {
+      options.push({ value: String(i), label: `Mesa ${i}` });
+    }
+    return options;
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F7F8FB] text-slate-900 p-6">
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -684,7 +712,7 @@ const fetchUltimos = async () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/DashboardVotantesResumen")}
+                onClick={() => navigate("/Dash-Resumen-votantes")}
                 aria-label="Ir al dashboard"
                 className="group relative inline-flex items-center gap-2 rounded-2xl px-5 py-2.5
                bg-gradient-to-r from-blue-600 to-indigo-600 text-white
@@ -779,6 +807,18 @@ const fetchUltimos = async () => {
                 {adminMenuOpen && (
                   <div className="absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
                     <div className="py-1">
+                       <button
+                        type="button"
+                        onClick={() => {
+                          navigate("/Reporte");
+                          setAdminMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        <Filter className="w-4 h-4" />
+                       Reporte
+                      </button>
+                      
                       <button
                         type="button"
                         onClick={() => {
@@ -794,7 +834,7 @@ const fetchUltimos = async () => {
                        <button
                         type="button"
                         onClick={() => {
-                          navigate("/VotanteManagement");
+                          navigate("/Promover-usuarios");
                           setAdminMenuOpen(false);
                         }}
                         className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
@@ -802,6 +842,24 @@ const fetchUltimos = async () => {
                         <User className="w-4 h-4" />
                         Promover Usuario
                       </button>
+
+
+
+
+                          <button
+                        type="button"
+                        onClick={() => {
+                          navigate("/reporte-camara");
+                          setAdminMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        <Filter className="w-4 h-4" />
+                        Reporte Camara
+                      </button>
+
+
+
 
                       <div className="border-t border-gray-200 my-1"></div>
 
@@ -955,6 +1013,49 @@ const fetchUltimos = async () => {
               </div>
             </div>
 
+            {/* Campo de número de mesa como select del 1 al 100 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Número de mesa
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Users className="w-4 h-4 text-slate-400" />
+                </div>
+                <select
+                  name="mesa"
+                  value={form.mesa}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-10 py-3 rounded-xl bg-white border border-slate-200 shadow-inner
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none appearance-none"
+                >
+                  {opcionesMesa.map((opcion) => (
+                    <option key={opcion.value} value={opcion.value}>
+                      {opcion.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Lugar de votación
+              </label>
+              <input
+                name="lugar_votacion"
+                value={form.lugar_votacion}
+                onChange={handleChange}
+                placeholder="Ej: Colegio Nacional"
+                className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner placeholder-slate-400
+                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+              />
+            </div>
+
             {/* Relaciones - Departamento y Municipio */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -995,10 +1096,6 @@ const fetchUltimos = async () => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <MapPin className="w-4 h-4 text-slate-400" />
                 </div>
-                {/* 
-                  CAMBIADO: Ahora el campo se llama "municipio" y envía el nombre del municipio
-                  El ID del departamento se envía en el campo "id_zona_asignada"
-                */}
                 <select
                   name="municipio"
                   value={form.municipio}
@@ -1050,6 +1147,28 @@ const fetchUltimos = async () => {
                 ))}
               </select>
             </div>
+
+            {/* CAMPO DE TIPO DE VOTO - MODIFICADO */}
+            {mostrarCampoTipoVoto && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Tipo de voto <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="tipo_voto"
+                  value={form.tipo_voto}
+                  onChange={handleChange}
+                  required
+                  className="w-full p-3 rounded-xl bg-white border border-slate-200 shadow-inner
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                >
+                  <option value="">Seleccione una opción</option>
+                  <option value="SENADO_Y_CAMARA">Para Senado y cámara</option>
+                  <option value="SOLO_SENADO">Para Senado</option>
+                  <option value="SOLO_CAMARA">Para Cámara</option>
+                </select>
+              </div>
+            )}
 
             <div className="md:col-span-2 flex items-center justify-end gap-3 pt-4">
               {form !== initialForm && (

@@ -12,11 +12,13 @@ import { Linkedin } from 'lucide-react';
 interface DecodedToken {
   nombre: string;
   tipo_usuario: number;
+  rol_usuario: string | number; // CAMBIO: Ahora puede ser texto ("LIDER") o número (1, 2)
   zona_asignada?: number;
   nombre_zona?: string;
   exp: number;
   iat: number;
 }
+
 
 const translations = {
   es: {

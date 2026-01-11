@@ -1,5 +1,4 @@
 const MunicipiosAdepartamentos: { [key: string]: string; } = {
-
   // AMAZONAS
   "Leticia": "Amazonas",
   "El Encanto": "Amazonas",
@@ -8,14 +7,14 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Mirití - Paraná": "Amazonas",
   "Puerto Alegría": "Amazonas",
   "Puerto Arica": "Amazonas",
-  "Puerto NariNo": "Amazonas",
+  "Puerto Narino": "Amazonas",
   "Puerto Santander": "Amazonas",
   "Tarapacá": "Amazonas",
 
   // ANTIOQUIA
   "Abriaquí": "Antioquia",
-  "Aberma": "Antioquia",
-  "Acandí": "Choco", // Corrección: Acandí está en Choco
+  "Amalfi": "Antioquia", // Corrección: "Aberma" no existe
+  "Acandí": "Choco", // Corrección: Acandí pertenece a Choco
   "Abejorral": "Antioquia",
 
   "Cañasgordas": "Antioquia",
@@ -26,7 +25,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Caracolí": "Antioquia",
   "Caramanta": "Antioquia",
   "Carepa": "Antioquia",
-  "Carolina": "Antioquia",
+  "Carolina del Príncipe": "Antioquia",
   "Caucasia": "Antioquia",
   "Chigorodó": "Antioquia",
   "Cisneros": "Antioquia",
@@ -61,7 +60,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "La Ceja": "Antioquia",
   "La Estrella": "Antioquia",
   "La Pintada": "Antioquia",
-  "La Unión": "Antioquia",
   "Liborina": "Antioquia",
   "Maceo": "Antioquia",
   "Marinilla": "Antioquia",
@@ -69,7 +67,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Montebello": "Antioquia",
   "Murindó": "Antioquia",
   "Mutatá": "Antioquia",
-  "NariNo": "Antioquia",
+  "Narino": "Antioquia",
   "Nechí": "Antioquia",
   "Necoclí": "Antioquia",
   "Olaya": "Antioquia",
@@ -128,7 +126,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Tame": "Arauca",
 
   // Atlantico
-  "Barranquilla": "Atlantico",
+ "Barranquilla": "Atlantico",
   "Baranoa": "Atlantico",
   "Campo de la Cruz": "Atlantico",
   "Candelaria": "Atlantico",
@@ -197,25 +195,28 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Tiquisio": "Bolivar",
   "Turbaco": "Bolivar",
   "Turbaná": "Bolivar",
-
   "Zambrano": "Bolivar",
 
-  // Boyaca
+
+
+
+   // Boyaca
+  "Tunja": "Boyaca",
   "Almeida": "Boyaca",
   "Aquitania": "Boyaca",
   "Arcabuco": "Boyaca",
-  "Belén": "Boyaca",
   "Berbeo": "Boyaca",
   "Betéitiva": "Boyaca",
   "Boavita": "Boyaca",
   "Boyaca": "Boyaca",
+  "Briceño": "Boyaca",
+
   "Busbanzá": "Boyaca",
 
   "Campohermoso": "Boyaca",
   "Cerinza": "Boyaca",
   "Chinavita": "Boyaca",
   "Chiquinquirá": "Boyaca",
-  "Chíquiza": "Boyaca",
   "Chiscas": "Boyaca",
   "Chita": "Boyaca",
   "Chitaraque": "Boyaca",
@@ -228,6 +229,8 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Cubará": "Boyaca",
   "Cucaita": "Boyaca",
   "Cuitiva": "Boyaca",
+  "Chíquiza": "Boyaca",
+  "Chivor": "Boyaca",
   "Duitama": "Boyaca",
   "El Cocuy": "Boyaca",
   "El Espino": "Boyaca",
@@ -242,11 +245,12 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Guicán": "Boyaca",
   "Iza": "Boyaca",
   "Jenesano": "Boyaca",
-
+ 
   "Labranzagrande": "Boyaca",
   "La Capilla": "Boyaca",
 
   "La Uvita": "Boyaca",
+  "Villa de Leyva": "Boyaca",
   "Macanal": "Boyaca",
   "Maripí": "Boyaca",
   "Miraflores": "Boyaca",
@@ -283,25 +287,27 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "San Mateo": "Boyaca",
   "San Miguel de Sema": "Boyaca",
   "San Pablo de Borbur": "Boyaca",
+  "Santana": "Boyaca",
   "Santa María": "Boyaca",
   "Santa Rosa de Viterbo": "Boyaca",
   "Santa Sofía": "Boyaca",
-  "Santana": "Boyaca",
   "Sativanorte": "Boyaca",
   "Sativasur": "Boyaca",
   "Siachoque": "Boyaca",
   "Soatá": "Boyaca",
-  "Socha": "Boyaca",
   "Socotá": "Boyaca",
+  "Socha": "Boyaca",
   "Sogamoso": "Boyaca",
+  "Somondoco": "Boyaca",
   "Sora": "Boyaca",
-  "Soracá": "Boyaca",
   "Sotaquirá": "Boyaca",
+  "Soracá": "Boyaca",
   "Susacón": "Boyaca",
   "Sutamarchán": "Boyaca",
   "Sutatenza": "Boyaca",
   "Tasco": "Boyaca",
   "Tenza": "Boyaca",
+  "Tibaná": "Boyaca",
   "Tibasosa": "Boyaca",
   "Tinjacá": "Boyaca",
   "Tipacoque": "Boyaca",
@@ -309,16 +315,31 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Togüí": "Boyaca",
   "Tópaga": "Boyaca",
   "Tota": "Boyaca",
-  "Tunja": "Boyaca",
   "Tununguá": "Boyaca",
   "Turmequé": "Boyaca",
   "Tuta": "Boyaca",
   "Tutazá": "Boyaca",
   "Úmbita": "Boyaca",
-  "Vargas": "Boyaca",
   "Ventaquemada": "Boyaca",
   "Viracachá": "Boyaca",
   "Zetaquira": "Boyaca",
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // CALDAS
   "Aguadas": "Caldas",
@@ -339,7 +360,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Pácora": "Caldas",
   "Palestina": "Caldas",
   "Pensilvania": "Caldas",
-  "Riosucio": "Caldas",
+
   "Risaralda": "Caldas",
   "Salamina": "Caldas",
   "Samaná": "Caldas",
@@ -350,14 +371,13 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Viterbo": "Caldas",
 
   // Caqueta
+  "Florencia": "Caqueta",
 
-  "Belén de los Andaquies": "Caqueta",
+  "Belén de los Andaquíes": "Caqueta",
   "Cartagena del Chairá": "Caqueta",
   "Curillo": "Caqueta",
-  "Doncella": "Caqueta",
   "El Doncello": "Caqueta",
   "El Paujil": "Caqueta",
-  "Florencia": "Caqueta",
   "La Montañita": "Caqueta",
   "Milán": "Caqueta",
   "Morelia": "Caqueta",
@@ -380,12 +400,10 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Paz de Ariporo": "Casanare",
   "Pore": "Casanare",
   "Recetor": "Casanare",
-
   "Sácama": "Casanare",
   "San Luis de Palenque": "Casanare",
   "Tauramena": "Casanare",
   "Trinidad": "Casanare",
-
   "Yopal": "Casanare",
 
   // CAUCA
@@ -399,7 +417,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Caloto": "Cauca",
   "Corinto": "Cauca",
   "El Tambo": "Cauca",
-
   "Guachené": "Cauca",
   "Guapí": "Cauca",
   "Inzá": "Cauca",
@@ -408,9 +425,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "López de Micay": "Cauca",
   "Mercaderes": "Cauca",
   "Miranda": "Cauca",
-
   "Padilla": "Cauca",
-
   "Patía": "Cauca",
   "Piamonte": "Cauca",
   "Piendamó": "Cauca",
@@ -420,7 +435,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Rosas": "Cauca",
   "San Sebastián": "Cauca",
   "Santander de Quilichao": "Cauca",
-
   "Silvia": "Cauca",
   "Sotará": "Cauca",
   "Suárez": "Cauca",
@@ -445,7 +459,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "González": "Cesar",
   "La Gloria": "Cesar",
   "La Jagua de Ibirico": "Cesar",
-
   "Pailitas": "Cesar",
   "Pelaya": "Cesar",
   "Pueblo Bello": "Cesar",
@@ -457,6 +470,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Valledupar": "Cesar",
 
   // Choco
+  "Quibdó": "Choco",
 
   "Alto Baudó": "Choco",
   "Atrato": "Choco",
@@ -464,32 +478,30 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Bahía Solano": "Choco",
   "Bajo Baudó": "Choco",
   "Bojayá": "Choco",
+  "Cantón de San Pablo": "Choco",
   "Carmen del Darién": "Choco",
   "Cértegui": "Choco",
   "Condoto": "Choco",
-  "El Cantón del San Pablo": "Choco",
   "El Carmen de Atrato": "Choco",
   "El Litoral del San Juan": "Choco",
-
   "Istmina": "Choco",
   "Juradó": "Choco",
   "Lloró": "Choco",
   "Medio Atrato": "Choco",
   "Medio Baudó": "Choco",
   "Medio San Juan": "Choco",
-  "Novita": "Choco",
+  "Nóvita": "Choco",
   "Nuquí": "Choco",
-  "Quibdó": "Choco",
   "Río Iró": "Choco",
   "Río Quito": "Choco",
-  "Río Sucio": "Choco",
+  "Riosucio": "Choco",
   "San José del Palmar": "Choco",
   "Sipí": "Choco",
   "Tadó": "Choco",
   "Unguía": "Choco",
   "Unión Panamericana": "Choco",
-
   // Cordoba
+  "Montería": "Cordoba",
   "Ayapel": "Cordoba",
   "Buenavista": "Cordoba",
   "Canalete": "Cordoba",
@@ -500,11 +512,10 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Cotorra": "Cordoba",
   "La Apartada": "Cordoba",
   "Lorica": "Cordoba",
-  "Los Cordobas": "Cordoba",
+  "Los Córdobas": "Cordoba",
   "Momil": "Cordoba",
-  "Montería": "Cordoba",
-  "Moñitos": "Cordoba",
   "Montelíbano": "Cordoba",
+  "Moñitos": "Cordoba",
   "Planeta Rica": "Cordoba",
   "Pueblo Nuevo": "Cordoba",
   "Puerto Escondido": "Cordoba",
@@ -523,6 +534,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
 
   // CUNDINAMARCA
   "Agua de Dios": "Cundinamarca",
+  "Bogotá": "Cundinamarca",
   "Albán": "Cundinamarca",
   "Anapoima": "Cundinamarca",
   "Anolaima": "Cundinamarca",
@@ -546,7 +558,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Cota": "Cundinamarca",
   "Cucunubá": "Cundinamarca",
   "El Colegio": "Cundinamarca",
-
   "El Rosal": "Cundinamarca",
   "Facatativá": "Cundinamarca",
   "Fómeque": "Cundinamarca",
@@ -558,7 +569,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Gachetá": "Cundinamarca",
   "Gama": "Cundinamarca",
   "Girardot": "Cundinamarca",
-
   "Guachetá": "Cundinamarca",
   "Guaduas": "Cundinamarca",
   "Guasca": "Cundinamarca",
@@ -579,12 +589,9 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Madrid": "Cundinamarca",
   "Manta": "Cundinamarca",
   "Medina": "Cundinamarca",
-  "Mosquera": "Cundinamarca",
- 
   "Nemocón": "Cundinamarca",
   "Nilo": "Cundinamarca",
   "Nimaima": "Cundinamarca",
-  "Noaquí": "Cundinamarca", // Corrección: No existía, probablemente se refería a Nocaima
   "Nocaima": "Cundinamarca",
   "Pacho": "Cundinamarca",
   "Paime": "Cundinamarca",
@@ -598,7 +605,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Quipile": "Cundinamarca",
   "Ricaurte": "Cundinamarca",
   "San Antonio del Tequendama": "Cundinamarca",
-  "San Bernardo": "Cundinamarca",
   "San Cayetano": "Cundinamarca",
   "San Francisco de Sales": "Cundinamarca",
   "San Juan de Rioseco": "Cundinamarca",
@@ -631,7 +637,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Vianí": "Cundinamarca",
   "Villapinzón": "Cundinamarca",
   "Villeta": "Cundinamarca",
-  "Viota": "Cundinamarca",
+  "Viotá": "Cundinamarca",
   "Yacopí": "Cundinamarca",
   "Zipacón": "Cundinamarca",
   "Zipaquirá": "Cundinamarca",
@@ -640,21 +646,20 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Inírida": "Guainia",
   "Barranco Minas": "Guainia",
   "Cacahual": "Guainia",
-  "Guaviare": "Guainia", // Corrección: Guaviare es un departamento, el municipio es Puerto Colombia
+ 
   "La Guadalupe": "Guainia",
   "Mapiripana": "Guainia",
   "Morichal": "Guainia",
   "Pana Pana": "Guainia",
   "Pacoa": "Guainia",
- 
   "San Felipe": "Guainia",
-  "San José del Guaviare": "Guainia", // Corrección: San José es capital de Guaviare, no municipio de Guainia
   "Victorino": "Guainia",
 
   // GUAVIARE
 
   "El Retorno": "Guaviare",
 
+  "San José del Guaviare": "Guaviare",
 
   // HUILA
   "Acevedo": "Huila",
@@ -665,29 +670,24 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Baraya": "Huila",
   "Campoalegre": "Huila",
   "Colombia": "Huila",
-  "El Agrado": "Huila",
-
   "Elías": "Huila",
   "Garzón": "Huila",
   "Gigante": "Huila",
-
   "Hobo": "Huila",
-  "Iquira": "Huila",
+  "Íquira": "Huila",
   "Isnos": "Huila",
   "La Argentina": "Huila",
   "La Plata": "Huila",
-  "Nataga": "Huila",
+  "Nátaga": "Huila",
   "Neiva": "Huila",
   "Oporapa": "Huila",
   "Paicol": "Huila",
   "Palermo": "Huila",
-
   "Pital": "Huila",
   "Pitalito": "Huila",
   "Rivera": "Huila",
   "Saladoblanco": "Huila",
   "San Agustín": "Huila",
-
   "Suaza": "Huila",
   "Tarqui": "Huila",
   "Tello": "Huila",
@@ -720,7 +720,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Cerro de San Antonio": "Magdalena",
   "Chivolo": "Magdalena",
   "Ciénaga": "Magdalena",
-
   "El Banco": "Magdalena",
   "El Piñón": "Magdalena",
   "El Retén": "Magdalena",
@@ -734,7 +733,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Puebloviejo": "Magdalena",
   "Remolino": "Magdalena",
   "Sabanas de San Ángel": "Magdalena",
-
   "San Sebastián de Buenavista": "Magdalena",
   "San Zenón": "Magdalena",
   "Santa Ana": "Magdalena",
@@ -756,7 +754,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "El Castillo": "Meta",
   "El Dorado": "Meta",
   "Fuente de Oro": "Meta",
-
   "La Macarena": "Meta",
   "Lejanías": "Meta",
   "Mapiripán": "Meta",
@@ -765,81 +762,75 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Puerto Gaitán": "Meta",
   "Puerto López": "Meta",
   "Puerto Lleras": "Meta",
-
   "Restrepo": "Meta",
   "San Carlos de Guaroa": "Meta",
   "San Juan de Arama": "Meta",
   "San Juanito": "Meta",
-
   "Uribe": "Meta",
   "Villavicencio": "Meta",
   "Vistahermosa": "Meta",
 
-  // NariNo
-  "Aldana": "NariNo",
-  "Ancuyá": "NariNo",
-  "Arboleda": "NariNo",
-  "Barbacoas": "NariNo",
-  "Belen": "NariNo", // Corrección: Belén está en Boyaca, el de NariNo es "Belén de Andaquies" (en Caqueta) o no existe. Se asume Barbacoas.
-  "Buesaco": "NariNo",
-  "Chachaguí": "NariNo",
-  "Colón": "NariNo", // Génova
-  "Consacá": "NariNo",
-  "Contadero": "NariNo",
+  // Narino
+  "Aldana": "Narino",
+  "Ancuya": "Narino",
+  "Arboleda": "Narino",
+  "Barbacoas": "Narino",
+  "Buesaco": "Narino",
+  "Chachagüí": "Narino",
+  "Colón": "Narino",
+  "Consacá": "Narino",
+  "Contadero": "Narino",
+  "Cuaspud": "Narino",
+  "Cumbal": "Narino",
+  "Cumbitara": "Narino",
+  "El Charco": "Narino",
+  "El Rosario": "Narino",
+  "El Tablón de Gómez": "Narino",
+  "Francisco Pizarro": "Narino",
+  "Funes": "Narino",
+  "Guachucal": "Narino",
+  "Guaitarilla": "Narino",
+  "Gualmatán": "Narino",
+  "Iles": "Narino",
+  "Imués": "Narino",
+  "Ipiales": "Narino",
+  "La Cruz": "Narino",
+  "La Florida": "Narino",
+  "La Llanada": "Narino",
+  "La Tola": "Narino",
+  "Leiva": "Narino",
+  "Linares": "Narino",
+  "Los Andes": "Narino",
+  "Magüí": "Narino",
+  "Mallama": "Narino",
+  "Olaya Herrera": "Narino",
+  "Ospina": "Narino",
+  "Pasto": "Narino",
+  "Policarpa": "Narino",
+  "Potosí": "Narino",
+  "Providencia": "Narino",
+  "Puerres": "Narino",
+  "Pupiales": "Narino",
+  "Roberto Payán": "Narino",
+  "Samaniego": "Narino",
+  "San José de Albán": "Narino",
+  "San Lorenzo": "Narino",
+  "San Pedro de Cartago": "Narino",
+  "Sandoná": "Narino",
+  "Santa Cruz": "Narino",
+  "Sapuyes": "Narino",
+  "Taminango": "Narino",
+  "Tangua": "Narino",
+  "Túquerres": "Narino",
+  "Yacuanquer": "Narino",
 
-  "Cuaspud": "NariNo",
-  "Cumbal": "NariNo",
-  "Cumbitara": "NariNo",
-  "El Charco": "NariNo",
-
-  "El Rosario": "NariNo",
-  "El Tablón de Gómez": "NariNo",
-
-  "Francisco Pizarro": "NariNo",
-  "Funes": "NariNo",
-  "Guachucal": "NariNo",
-  "Guaitarilla": "NariNo",
-  "Gualmatán": "NariNo",
-  "Iles": "NariNo",
-  "Imués": "NariNo",
-  "Ipiales": "NariNo",
-  "La Cruz": "NariNo",
-  "La Florida": "NariNo",
-  "La Llanada": "NariNo",
-  "La Tola": "NariNo",
-
-  "Leiva": "NariNo",
-  "Linares": "NariNo",
-  "Los Andes": "NariNo",
-  "Magüí": "NariNo",
-  "Mallama": "NariNo",
-
-  "Olaya Herrera": "NariNo",
-  "Ospina": "NariNo",
-  "Pasto": "NariNo",
-  "Policarpo": "NariNo",
-  "Potosí": "NariNo",
-  "Providencia": "NariNo",
-  "Puerres": "NariNo",
-  "Pupiales": "NariNo",
-
-  "Robles": "NariNo", // Corrección: El municipio es "Roberto Payán"
-  "Roberto Payán": "NariNo",
-  "Samaniego": "NariNo",
+  "Belén": "Narino",
+  "La Unión": "Narino",
+  "Mosquera": "Narino",
+  "San Bernardo": "Narino",
+  "Tumaco": "Narino",
 
 
-  "San José de Albán": "NariNo",
-  "San Lorenzo": "NariNo",
-
-  "San Pedro de Cartago": "NariNo",
-  "Sandoná": "NariNo",
-
-  "Santacruz": "NariNo",
-  "Sapuyes": "NariNo",
-  "Taminango": "NariNo",
-  "Tangua": "NariNo",
-  "Túquerres": "NariNo",
-  "Yacuanquer": "NariNo",
 
   // NORTE DE SANTANDER
   "Ábrego": "Norte de Santander",
@@ -866,42 +857,39 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Ocaña": "Norte de Santander",
   "Pamplona": "Norte de Santander",
   "Pamplonita": "Norte de Santander",
-
   "Ragonvalia": "Norte de Santander",
   "Salazar": "Norte de Santander",
   "San Calixto": "Norte de Santander",
-
-  "San José de Cúcuta": "Norte de Santander", // Corrección: es Cúcuta
   "Santiago": "Norte de Santander",
   "Sardinata": "Norte de Santander",
   "Silos": "Norte de Santander",
   "Teorama": "Norte de Santander",
   "Tibú": "Norte de Santander",
-
   "Villa Caro": "Norte de Santander",
   "Villa del Rosario": "Norte de Santander",
 
-  // PUTUMAYO
 
+
+
+  // PUTUMAYO
   "Mocoa": "Putumayo",
   "Orito": "Putumayo",
   "Puerto Asís": "Putumayo",
   "Puerto Caicedo": "Putumayo",
   "Puerto Guzmán": "Putumayo",
   "Puerto Leguízamo": "Putumayo",
-
   "San Miguel": "Putumayo",
-
   "Sibundoy": "Putumayo",
   "Valle del Guamuez": "Putumayo",
   "Villagarzón": "Putumayo",
+
 
   // Quindio
   "Armenia": "Quindio",
 
   "Calarcá": "Quindio",
   "Circasia": "Quindio",
-
+ 
   "Filandia": "Quindio",
   "Génova": "Quindio",
   "La Tebaida": "Quindio",
@@ -912,7 +900,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
 
   // RISARALDA
   "Apía": "Risaralda",
-
   "Belén de Umbría": "Risaralda",
   "Dosquebradas": "Risaralda",
   "Guática": "Risaralda",
@@ -926,21 +913,17 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Santa Rosa de Cabal": "Risaralda",
   "Santuario": "Risaralda",
 
-  // San Andres y Providencia
-
+  // SAN ANDRÉS Y PROVIDENCIA
   "San Andrés": "San Andres y Providencia",
-
 
   // SANTANDER
   "Aguada": "Santander",
-
   "Aratoca": "Santander",
   "Barbosa": "Santander",
   "Barichara": "Santander",
   "Barrancabermeja": "Santander",
   "Betulia": "Santander",
   "Bucaramanga": "Santander",
-
   "California": "Santander",
   "Capitanejo": "Santander",
   "Carcasí": "Santander",
@@ -957,7 +940,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Curití": "Santander",
   "El Carmen de Chucurí": "Santander",
   "El Guacamayo": "Santander",
-
   "El Playón": "Santander",
   "Encino": "Santander",
   "Floridablanca": "Santander",
@@ -967,10 +949,8 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Girón": "Santander",
   "Güepsa": "Santander",
   "Guaca": "Santander",
-
   "Guapotá": "Santander",
-  "Guavata": "Santander",
-  "Guepsa": "Santander", // Corrección: es Güepsa
+  "Guavatá": "Santander",
   "Hato": "Santander",
   "Jesús María": "Santander",
   "Jordán": "Santander",
@@ -993,32 +973,24 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Pinchote": "Santander",
   "Puente Nacional": "Santander",
   "Puerto Parra": "Santander",
-
   "Sabana de Torres": "Santander",
-
   "San Benito": "Santander",
   "San Gil": "Santander",
   "San Joaquín": "Santander",
   "San José de Miranda": "Santander",
-
   "San Vicente de Chucurí": "Santander",
-
   "Santa Helena del Opón": "Santander",
-
   "Simacota": "Santander",
   "Socorro": "Santander",
   "Suaita": "Santander",
-
   "Suratá": "Santander",
   "Tona": "Santander",
   "Valle de San José": "Santander",
   "Vélez": "Santander",
   "Vetas": "Santander",
-
   "Zapatoca": "Santander",
 
   // SUCRE
-
   "Caimito": "Sucre",
   "Chalán": "Sucre",
   "Colosó": "Sucre",
@@ -1027,7 +999,6 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "El Roble": "Sucre",
   "Galeras": "Sucre",
   "Guaranda": "Sucre",
-
   "Los Palmitos": "Sucre",
   "Majagual": "Sucre",
   "Morroa": "Sucre",
@@ -1051,7 +1022,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Alvarado": "Tolima",
   "Ambalema": "Tolima",
   "Anzoátegui": "Tolima",
-  "Armero": "Tolima", // Guayabal
+  "Armero Guayabal": "Tolima",
   "Ataco": "Tolima",
   "Cajamarca": "Tolima",
   "Carmen de Apicalá": "Tolima",
@@ -1061,7 +1032,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Coyaima": "Tolima",
   "Cunday": "Tolima",
   "Dolores": "Tolima",
-  "Espinal": "Tolima",
+  "El Espinal": "Tolima",
   "Falan": "Tolima",
   "Flandes": "Tolima",
   "Fresno": "Tolima",
@@ -1087,9 +1058,7 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Rovira": "Tolima",
   "Saldaña": "Tolima",
   "San Antonio": "Tolima",
-
   "Santa Isabel": "Tolima",
-
   "Valle de San Juan": "Tolima",
   "Venadillo": "Tolima",
   "Villahermosa": "Tolima",
@@ -1099,14 +1068,12 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Alcalá": "Valle del Cauca",
   "Andalucía": "Valle del Cauca",
   "Ansermanuevo": "Valle del Cauca",
-
   "Buenaventura": "Valle del Cauca",
   "Buga": "Valle del Cauca",
   "Bugalagrande": "Valle del Cauca",
   "Caicedonia": "Valle del Cauca",
   "Cali": "Valle del Cauca",
-  "Calima": "Valle del Cauca", // Darién
-
+  "Calima": "Valle del Cauca",
   "Cartago": "Valle del Cauca",
   "Dagua": "Valle del Cauca",
   "El Águila": "Valle del Cauca",
@@ -1116,17 +1083,14 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Florida": "Valle del Cauca",
   "Ginebra": "Valle del Cauca",
   "Guacarí": "Valle del Cauca",
-  "Guadalajara de Buga": "Valle del Cauca", // Corrección: es Buga
+  "Guadalajara de Buga": "Valle del Cauca",
   "Jamundí": "Valle del Cauca",
   "La Cumbre": "Valle del Cauca",
-
   "Obando": "Valle del Cauca",
   "Palmira": "Valle del Cauca",
   "Pradera": "Valle del Cauca",
-
   "Riofrío": "Valle del Cauca",
   "Roldanillo": "Valle del Cauca",
-
   "Sevilla": "Valle del Cauca",
   "Toro": "Valle del Cauca",
   "Trujillo": "Valle del Cauca",
@@ -1138,19 +1102,19 @@ const MunicipiosAdepartamentos: { [key: string]: string; } = {
   "Yumbo": "Valle del Cauca",
   "Zarzal": "Valle del Cauca",
 
-  // VAUPÉS
-  "Carurú": "Vaupés",
-  "Mitú": "Vaupés",
-
-  "Papunaua": "Vaupés",
-  "Taraira": "Vaupés",
-  "Vaupés": "Vaupés",
-  "Yavaraté": "Vaupés",
+  // Vaupes
+  "Carurú": "Vaupes",
+  "Mitú": "Vaupes",
+  "Papunaua": "Vaupes",
+  "Taraira": "Vaupes",
+  "Vaupes": "Vaupes",
+  "Yavaraté": "Vaupes",
 
   // VICHADA
   "Cumaribo": "Vichada",
   "La Primavera": "Vichada",
   "Puerto Carreño": "Vichada",
   "Santa Rosalía": "Vichada",
+
 };
 export default MunicipiosAdepartamentos;
